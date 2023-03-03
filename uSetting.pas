@@ -19,6 +19,7 @@ type
     procedure edtTempKeyPress(Sender: TObject; var Key: Char);
     procedure btnSaveClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
     procedure WriteIniFile(uFile: string; Section_Name: string; Key_Name: string; StrValue: string);
@@ -207,6 +208,15 @@ procedure TfSetting.FormActivate(Sender: TObject);
 begin
 try
   mmoToken.SetFocus;
+except
+  Exit;
+end;
+end;
+
+procedure TfSetting.FormCreate(Sender: TObject);
+begin
+try
+if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then mmoToken.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
 except
   Exit;
 end;
