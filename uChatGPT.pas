@@ -86,6 +86,8 @@ type
     cbbSize: TComboBox;
     btnListfinetunes: TButton;
     aListFineTunes: TAction;
+    lPrompts: TLabel;
+    cPrompts: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure chksaveClick(Sender: TObject);
     procedure lst2Click(Sender: TObject);
@@ -106,6 +108,7 @@ type
     procedure aListModelsExecute(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure aListFineTunesExecute(Sender: TObject);
+    procedure cPromptsChange(Sender: TObject);
   private
     { Private declarations }
     procedure GetRegStatus(id: Integer);
@@ -123,6 +126,8 @@ type
     { Public declarations }
     ApiKey : string;
     lng       : TStringList;
+    uStr,uStr1,
+    uStr2     : TStringList;
     FileName  : string;
     temper : Integer;
     uToken : string;
@@ -163,6 +168,21 @@ begin
   Application.Terminate;
 end;
 
+procedure RamClean;
+var MainHandle: THandle;
+begin
+try
+if Win32Platform = VER_PLATFORM_WIN32_NT then
+begin
+   MainHandle := OpenProcess(PROCESS_ALL_ACCESS, false, GetCurrentProcessID);
+   SetProcessWorkingSetSize(MainHandle, DWORD(-1), DWORD(-1));
+   CloseHandle(MainHandle);
+end;
+except
+  Exit;
+end;
+end;
+
 constructor THTTPRequest.Create(AParams: TWWWParams);
 begin
   inherited Create(False);
@@ -197,6 +217,8 @@ try
                  'Your organization has been deleted.'+#13#10+
                  'You are using an API key that does not have the necessary permissions for the called endpoint.';
        MessageBox(Handle,PChar(Result), PChar('Attention'), 64);
+       ShellExecute(Handle, 'open', 'https://platform.openai.com/account/api-keys', nil, nil, SW_SHOW);
+       Memo2.Clear;
     end;
     if id = 429 then
     begin
@@ -209,6 +231,8 @@ try
                  'There is an unexpected or unavoidable outage or incident on our servers.'+#13#10+
                  'You are using a free plan that has a low rate limit.';
        MessageBox(Handle,PChar(Result), PChar('Attention'), 64);
+       ShellExecute(Handle, 'open', 'https://platform.openai.com/account/api-keys', nil, nil, SW_SHOW);
+       Memo2.Clear;
     end;
 except
   Exit;
@@ -858,14 +882,48 @@ end;
 end;
 
 procedure TmyChatGPT.FormCreate(Sender: TObject);
-var Url : string;
+var Url : string; i : Integer; s,s1,str: string;
 begin
 try
    Url := 'https://api.openai.com/v1/completions';
    if FileExists(FileName) then DeleteFile(FileName);
-   cbbSize.ItemIndex := 0;
-   TrayIcon1.IconVisible := True;
+      cbbSize.ItemIndex := 0;
+      TrayIcon1.IconVisible := True;
    if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then ApiKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
+   if FileExists(ExtractFileDir(ParamStr(0))+'\prompts.csv') then begin
+    try
+     try
+       uStr := TStringList.Create;
+       uStr1 := TStringList.Create;
+       uStr2 := TStringList.Create;
+       uStr.LoadFromFile(ExtractFileDir(ParamStr(0))+'\prompts.csv');
+       if uStr.Count > 0 then
+       for i := 0 to uStr.Count-1 do begin
+           str := uStr.Strings[i];
+           if pos('"',str)<>0 then begin
+              s := str;
+              delete(s,1,pos('"',s));
+              s:=copy(s,1,pos('"',s)-1);
+              uStr1.Add(s);
+              cPrompts.Items.Add(s);
+              if pos('"',str)<>0 then begin
+                 s1 := str;
+                 delete(s1,1,pos('"',s1)+Length(s)+2);
+                 if pos('"',s1)<>0 then begin
+                    delete(s1,1,pos('"',s1));
+                    s:=copy(s1,1,pos('"',s1)-1);
+                    uStr2.Add(s);
+                 end;
+              end;
+           end;//          cPrompts
+       end;
+     finally
+       uStr.Free;
+     end;
+    except
+      //
+    end;
+   end;
 except
   Exit;
 end;
@@ -953,6 +1011,7 @@ begin
 try
   edt1.SetFocus;
   TrayIcon1.IconVisible := True;
+  if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean;
 except
   Exit;
 end;
@@ -961,6 +1020,8 @@ end;
 procedure TmyChatGPT.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
 try
+  uStr1.Free;
+  uStr2.Free;
   lst2.Items.SaveToFile('Dialog.txt');
   mmo1.Lines.SaveToFile('Respons.txt');
   lst2.Items.Clear;
@@ -974,7 +1035,12 @@ end;
 
 procedure TmyChatGPT.ShowWindow1Click(Sender: TObject);
 begin
+try
   TrayIcon1.ShowMainForm;    // ALWAYS use this method to restore!!!
+  if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean;
+except
+  Exit;
+end;
 end;
 
 procedure TmyChatGPT.HideWindow1Click(Sender: TObject);
@@ -992,6 +1058,8 @@ try
   mmo1.Lines.Clear;
   Sleep(500);
   stat1.SimpleText := 'Saved successfully';
+  uStr1.Free;
+  uStr2.Free;
   Application.Terminate;
   Close;
 except
@@ -1130,6 +1198,11 @@ try
 except
   Exit;
 end;
+end;
+
+procedure TmyChatGPT.cPromptsChange(Sender: TObject);
+begin
+  if cPrompts.Items.Count > 0 then edt1.Text := uStr2.Strings[cPrompts.ItemIndex];
 end;
 
 end.

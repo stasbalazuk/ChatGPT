@@ -1,6 +1,6 @@
 object myChatGPT: TmyChatGPT
-  Left = 364
-  Top = 177
+  Left = 315
+  Top = 199
   Width = 1196
   Height = 659
   Color = clBtnFace
@@ -168,6 +168,13 @@ object myChatGPT: TmyChatGPT
         Height = 13
         Caption = 'Size of images: '
       end
+      object lPrompts: TLabel
+        Left = 8
+        Top = 225
+        Width = 46
+        Height = 13
+        Caption = 'Prompts :'
+      end
       object btn1: TButton
         Left = 8
         Top = 56
@@ -228,6 +235,15 @@ object myChatGPT: TmyChatGPT
         Height = 25
         Action = aListFineTunes
         TabOrder = 6
+      end
+      object cPrompts: TComboBox
+        Left = 8
+        Top = 241
+        Width = 125
+        Height = 21
+        ItemHeight = 13
+        TabOrder = 7
+        OnChange = cPromptsChange
       end
     end
     object grpClean: TGroupBox
@@ -2453,7 +2469,7 @@ object myChatGPT: TmyChatGPT
     Left = 974
     Top = 87
     Bitmap = {
-      494C010102000800140010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800180010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000010000000E1414143F28282862282828621414143F0000000E0000
