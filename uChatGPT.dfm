@@ -1,8 +1,9 @@
 object myChatGPT: TmyChatGPT
-  Left = 315
-  Top = 199
-  Width = 1196
+  Left = 217
+  Top = 171
+  Width = 1266
   Height = 659
+  BorderIcons = [biSystemMenu, biMinimize]
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,7 +19,7 @@ object myChatGPT: TmyChatGPT
   PixelsPerInch = 96
   TextHeight = 13
   object spl2: TSplitter
-    Left = 869
+    Left = 939
     Top = 0
     Height = 628
     Align = alRight
@@ -31,7 +32,7 @@ object myChatGPT: TmyChatGPT
   object grp1: TGroupBox
     Left = 148
     Top = 0
-    Width = 721
+    Width = 791
     Height = 628
     Align = alClient
     Caption = 'Response ChatGPT'
@@ -39,7 +40,7 @@ object myChatGPT: TmyChatGPT
     object spl1: TSplitter
       Left = 2
       Top = 582
-      Width = 717
+      Width = 787
       Height = 3
       Cursor = crVSplit
       Align = alBottom
@@ -65,7 +66,7 @@ object myChatGPT: TmyChatGPT
     object grpTrans: TGroupBox
       Left = 2
       Top = 15
-      Width = 717
+      Width = 787
       Height = 567
       Align = alClient
       Caption = 'Translate [EN/RU]'
@@ -73,7 +74,7 @@ object myChatGPT: TmyChatGPT
       object Memo2: TMemo
         Left = 2
         Top = 15
-        Width = 713
+        Width = 783
         Height = 550
         Align = alClient
         Color = clSkyBlue
@@ -91,18 +92,33 @@ object myChatGPT: TmyChatGPT
     object pnl2: TPanel
       Left = 2
       Top = 585
-      Width = 717
+      Width = 787
       Height = 41
       Align = alBottom
       BevelInner = bvLowered
       TabOrder = 2
       DesignSize = (
-        717
+        787
         41)
+      object btnTranc: TSpeedButton
+        Left = 748
+        Top = 8
+        Width = 32
+        Height = 27
+        Hint = 'A translation from Russian to English'
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        BiDiMode = bdRightToLeftReadingOnly
+        Caption = '...'
+        Layout = blGlyphTop
+        ParentShowHint = False
+        ParentBiDiMode = False
+        ShowHint = True
+        OnClick = btnTrancClick
+      end
       object edt1: TEdit
-        Left = 8
+        Left = 7
         Top = 6
-        Width = 705
+        Width = 737
         Height = 31
         Anchors = [akLeft, akTop, akBottom]
         BevelInner = bvNone
@@ -118,7 +134,7 @@ object myChatGPT: TmyChatGPT
     end
   end
   object grp2: TGroupBox
-    Left = 872
+    Left = 942
     Top = 0
     Width = 316
     Height = 628
@@ -2469,7 +2485,7 @@ object myChatGPT: TmyChatGPT
     Left = 974
     Top = 87
     Bitmap = {
-      494C010102000800180010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800300010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000010000000E1414143F28282862282828621414143F0000000E0000
@@ -2661,5 +2677,50 @@ object myChatGPT: TmyChatGPT
   object SaveDialog1: TSaveDialog
     Left = 976
     Top = 240
+  end
+  object sSkinManager1: TsSkinManager
+    InternalSkins = <>
+    MenuSupport.IcoLineSkin = 'ICOLINE'
+    MenuSupport.ExtraLineFont.Charset = DEFAULT_CHARSET
+    MenuSupport.ExtraLineFont.Color = clWindowText
+    MenuSupport.ExtraLineFont.Height = -11
+    MenuSupport.ExtraLineFont.Name = 'Tahoma'
+    MenuSupport.ExtraLineFont.Style = []
+    SkinDirectory = 'c:\Skins'
+    SkinInfo = 'N/A'
+    ThirdParty.ThirdEdits = 
+      'TEdit'#13#10'TMemo'#13#10'TMaskEdit'#13#10'TLabeledEdit'#13#10'THotKey'#13#10'TListBox'#13#10'TCheck' +
+      'ListBox'#13#10'TDBListBox'#13#10'TRichEdit'#13#10'TDBMemo'#13#10'TSynEdit'#13#10'TSynMemo'#13#10'TDB' +
+      'SynEdit'#13#10'TDBLookupListBox'#13#10'TDBRichEdit'#13#10'TDBCtrlGrid'#13#10'TDateTimePi' +
+      'cker'#13#10'TDBEdit'
+    ThirdParty.ThirdButtons = 'TButton'
+    ThirdParty.ThirdBitBtns = 'TBitBtn'
+    ThirdParty.ThirdCheckBoxes = 
+      'TCheckBox'#13#10'TRadioButton'#13#10'TDBCheckBox'#13#10'TDBCheckBoxEh'#13#10'TGroupButto' +
+      'n'
+    ThirdParty.ThirdGroupBoxes = 'TGroupBox'#13#10'TDBRadioGroup'#13#10'TRadioGroup'
+    ThirdParty.ThirdListViews = 'TListView'
+    ThirdParty.ThirdPanels = 'TPanel'#13#10'TDBCtrlPanel'
+    ThirdParty.ThirdGrids = 
+      'TStringGrid'#13#10'TDrawGrid'#13#10'TRichView'#13#10'TDBRichViewEdit'#13#10'TRichViewEdi' +
+      't'#13#10'TDBRichView'#13#10'TwwDBGrid'#13#10'TAdvStringGrid'#13#10'TDBAdvGrid'#13#10'TValueLis' +
+      'tEditor'#13#10'TDBGrid'
+    ThirdParty.ThirdTreeViews = 'TTreeView'#13#10'TRzTreeView'#13#10'TDBTreeView'
+    ThirdParty.ThirdComboBoxes = 'TComboBox'#13#10'TColorBox'#13#10'TDBComboBox'
+    ThirdParty.ThirdWWEdits = 
+      'TDBLookupComboBox'#13#10'TwwDBComboBox'#13#10'TwwDBCustomCombo'#13#10'TwwDBCustomL' +
+      'ookupCombo'
+    ThirdParty.ThirdVirtualTrees = 
+      'TVirtualStringTree'#13#10'TVirtualStringTreeDB'#13#10'TEasyListview'#13#10'TVirtua' +
+      'lExplorerListview'#13#10'TVirtualExplorerTreeview'#13#10'TVirtualExplorerTre' +
+      'e'#13#10'TVirtualDrawTree'
+    ThirdParty.ThirdGridEh = 'TDBGridEh'
+    ThirdParty.ThirdPageControl = ' '
+    ThirdParty.ThirdTabControl = ' '
+    ThirdParty.ThirdToolBar = ' '
+    ThirdParty.ThirdStatusBar = ' '
+    ThirdParty.ThirdSpeedButton = ' '
+    Left = 977
+    Top = 290
   end
 end

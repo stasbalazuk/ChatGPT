@@ -3,7 +3,7 @@ object fSetting: TfSetting
   Top = 312
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
-  ClientHeight = 157
+  ClientHeight = 222
   ClientWidth = 408
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -21,13 +21,13 @@ object fSetting: TfSetting
     Left = 0
     Top = 0
     Width = 408
-    Height = 109
+    Height = 174
     Align = alClient
     BevelInner = bvRaised
     TabOrder = 0
     object ltemp: TLabel
       Left = 8
-      Top = 80
+      Top = 152
       Width = 69
       Height = 13
       Caption = 'Temperature :'
@@ -54,7 +54,7 @@ object fSetting: TfSetting
     end
     object edtTemp: TEdit
       Left = 80
-      Top = 80
+      Top = 152
       Width = 41
       Height = 19
       BorderStyle = bsNone
@@ -66,17 +66,35 @@ object fSetting: TfSetting
     end
     object ud1: TUpDown
       Left = 121
-      Top = 80
+      Top = 152
       Width = 16
       Height = 19
       Associate = edtTemp
       Max = 2
       TabOrder = 2
     end
+    object grpGoogleLanguageApiKey: TGroupBox
+      Left = 2
+      Top = 73
+      Width = 404
+      Height = 72
+      Align = alTop
+      Caption = 'Google Language ApiKey'
+      TabOrder = 3
+      object mmoGoogleLanguageApiKey: TMemo
+        Left = 2
+        Top = 15
+        Width = 400
+        Height = 55
+        Align = alClient
+        ScrollBars = ssVertical
+        TabOrder = 0
+      end
+    end
   end
   object pnl2: TPanel
     Left = 0
-    Top = 109
+    Top = 174
     Width = 408
     Height = 48
     Align = alBottom

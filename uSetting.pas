@@ -16,6 +16,8 @@ type
     ud1: TUpDown;
     ltemp: TLabel;
     btnSave: TBitBtn;
+    grpGoogleLanguageApiKey: TGroupBox;
+    mmoGoogleLanguageApiKey: TMemo;
     procedure edtTempKeyPress(Sender: TObject; var Key: Char);
     procedure btnSaveClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
@@ -31,7 +33,7 @@ type
   public
     { Public declarations }
     temper : Integer;
-    uToken : string;
+    uToken,uGoogleLanguageApiKey : string;
   end;
 
 var
@@ -188,15 +190,18 @@ begin
 end;
 
 procedure TfSetting.btnSaveClick(Sender: TObject);
-var uTok : string;
+var uTok,uGoogleKey : string;
 begin
 try
      uTok := Trim(mmoToken.Text);
+     uGoogleKey := Trim(mmoGoogleLanguageApiKey.Text);
   if Length(uTok) > 0 then begin
      WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token',uTok);
+     WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','GoogleLanguageApiKey',uGoogleKey);
      WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Setting','Temperature',Trim(edtTemp.Text));
      temper := StrToInt(edtTemp.Text);
      uToken := uTok;
+     uGoogleLanguageApiKey := uGoogleKey;
   end else MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
      mmoToken.SetFocus;
 except
@@ -216,7 +221,11 @@ end;
 procedure TfSetting.FormCreate(Sender: TObject);
 begin
 try
-if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then mmoToken.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
+if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then begin
+   mmoToken.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
+   mmoGoogleLanguageApiKey.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','GoogleLanguageApiKey');
+   edtTemp.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Setting','Temperature');
+end;
 except
   Exit;
 end;

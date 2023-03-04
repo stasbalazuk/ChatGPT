@@ -13,8 +13,10 @@ uses
   clipbrd,
   StrUtils, ShellApi,
   StdCtrls, ComCtrls, ExtCtrls,
-  Dialogs, ImgList, CoolTrayIcon, Menus, ActnList;
+  Dialogs, ImgList, CoolTrayIcon, Menus, ActnList, sSkinManager, Buttons;
 
+const
+  SkinName = 'Office12Style (internal)';
 
 const
   MicrosoftTranslatorTranslateUri = 'http://api.microsofttranslator.com/v2/Http.svc/Translate?appId=%s&text=%s&from=%s&to=%s';
@@ -22,11 +24,28 @@ const
   MicrosoftTranslatorGetLngUri    = 'http://api.microsofttranslator.com/v2/Http.svc/GetLanguagesForTranslate?appId=%s';
   MicrosoftTranslatorGetSpkUri    = 'http://api.microsofttranslator.com/v2/Http.svc/GetLanguagesForSpeak?appId=%s';
   MicrosoftTranslatorSpeakUri     = 'http://api.microsofttranslator.com/v2/Http.svc/Speak?appId=%s&text=%s&language=%s';
+  //Google
+  GoogleUrl                       = 'https://www.googleapis.com/language/translate/v2?key=%s&source=%s&target=%s&q=%s';
+  GoogleTranslateUrl              = 'https://www.googleapis.com/language/translate/v2?key=%s&q=%s&source=%s&target=%s';
+  GoogleTranslateUrlAuto          = 'https://www.googleapis.com/language/translate/v2?key=%s&target=%s&q=%s';
   //this AppId if for demo only please be nice and use your own , it's easy get one from here http://msdn.microsoft.com/en-us/library/ff512386.aspx
   BingAppId                       = '73C8F474CA4D1202AD60747126813B731199ECEA';
   Msxml2_DOMDocument              = 'Msxml2.DOMDocument.6.0';
   CreateImage = '{"prompt": "#",  "n": 2,  "size": "@"}';
   SetFileName = 'ResponseJsonImage';
+
+type
+  TGoogleLanguages = (Autodetect,Afrikaans,Albanian,Arabic,Basque,Belarusian,Bulgarian,Catalan,Chinese,Chinese_Traditional,
+  Croatian,Czech,Danish,Dutch,English,Estonian,Filipino,Finnish,French,Galician,German,Greek,
+  Haitian_Creole,Hebrew,Hindi,Hungarian,Icelandic,Indonesian,Irish,Italian,Japanese,Latvian,
+  Lithuanian,Macedonian,Malay,Maltese,Norwegian,Persian,Polish,Portuguese,Romanian,Russian,
+  Serbian,Slovak,Slovenian,Spanish,Swahili,Swedish,Thai,Turkish,Ukrainian,Vietnamese,Welsh,Yiddish);
+ 
+const
+  GoogleLanguagesArr : array[TGoogleLanguages] of string =
+  ( 'Autodetect','af','sq','ar','eu','be','bg','ca','zh-CN','zh-TW','hr','cs','da','nl','en','et','tl','fi','fr','gl',
+    'de','el','ht','iw','hi','hu','is','id','ga','it','ja','lv','lt','mk','ms','mt','no','fa','pl','pt',
+    'ro','ru','sr','sk','sl','es','sw','sv','th','tr','uk','vi','cy','yi');
 
 type
   TWWWParams = record
@@ -88,6 +107,8 @@ type
     aListFineTunes: TAction;
     lPrompts: TLabel;
     cPrompts: TComboBox;
+    sSkinManager1: TsSkinManager;
+    btnTranc: TSpeedButton;
     procedure FormCreate(Sender: TObject);
     procedure chksaveClick(Sender: TObject);
     procedure lst2Click(Sender: TObject);
@@ -109,9 +130,13 @@ type
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure aListFineTunesExecute(Sender: TObject);
     procedure cPromptsChange(Sender: TObject);
+    procedure btnTrancClick(Sender: TObject);
   private
     { Private declarations }
+    sSkinForm: integer;
+    ResStream: TResourceStream;
     procedure GetRegStatus(id: Integer);
+    function GetTranslate(Metod: string; RequestURL: string): string;
     function PostParam(Metod: string; RequestURL: string; Params: string; Bearer: string): string;
     function PostTranslate(Metod: string; RequestURL: string; Params: string): string;
     { Setting ini file }
@@ -124,7 +149,7 @@ type
     procedure WMQueryEndSession(var Message: TMessage); message WM_QUERYENDSESSION;
   public
     { Public declarations }
-    ApiKey : string;
+    ApiKey,GoogleLanguageApiKey : string;
     lng       : TStringList;
     uStr,uStr1,
     uStr2     : TStringList;
@@ -143,6 +168,7 @@ type
     FResponseText: string;
     FMessage: string;
     FFileName: string;
+    sSkinForm: integer;
     procedure Execute; override;
     procedure SynchronizeResult;
     procedure SetFileName;
@@ -155,10 +181,13 @@ type
 var
   myChatGPT: TmyChatGPT;
   FParams: TWWWParams;
+  wy,wm,wd: Word;
+  myDir: string;
 
 implementation
 
 {$R *.dfm}
+{$R Office12Style.RES}
 
 uses uSetting;
 
@@ -218,6 +247,7 @@ try
                  'You are using an API key that does not have the necessary permissions for the called endpoint.';
        MessageBox(Handle,PChar(Result), PChar('Attention'), 64);
        ShellExecute(Handle, 'open', 'https://platform.openai.com/account/api-keys', nil, nil, SW_SHOW);
+       ShellExecute(Handle, 'open', 'https://console.cloud.google.com/apis/credentials', nil, nil, SW_SHOW);
        Memo2.Clear;
     end;
     if id = 429 then
@@ -232,6 +262,7 @@ try
                  'You are using a free plan that has a low rate limit.';
        MessageBox(Handle,PChar(Result), PChar('Attention'), 64);
        ShellExecute(Handle, 'open', 'https://platform.openai.com/account/api-keys', nil, nil, SW_SHOW);
+       ShellExecute(Handle, 'open', 'https://console.cloud.google.com/apis/credentials', nil, nil, SW_SHOW);
        Memo2.Clear;
     end;
 except
@@ -250,10 +281,6 @@ try
    try
      // Write a string value to the INI file.
     ini.WriteString(Section_Name, Key_Name, StrValue);
-     // Write a integer value to the INI file.
-     //ini.WriteInteger(Section_Name, Key_Name, IntValue);
-     // Write a boolean value to the INI file.
-     //ini.WriteBool(Section_Name, Key_Name, BoolValue);
    finally
      ini.Free;
    end;
@@ -676,7 +703,9 @@ var
 begin
   vDlg := TSaveDialog.Create(Application);
   try
-    vDlg.InitialDir := GetCurrentDir;
+    if DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir) then
+    vDlg.InitialDir := GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir
+    else vDlg.InitialDir := GetCurrentDir;
     vDlg.Filter := 'Json file|*.json';
     vDlg.DefaultExt := 'json';
     vDlg.FilterIndex := 1;
@@ -775,7 +804,60 @@ except
 end;
 end;
 
-//авторизация
+//Translate
+function TmyChatGPT.GetTranslate(Metod: string; RequestURL: string): string;
+var
+  Req: OleVariant;
+  OV: Variant;
+  os: TOLEStream;
+  im: TMemoryStream;
+  Json : JSONBase;
+  str : JSONString;
+  ABuilder: TStringCatHelper;
+begin
+try
+  Result:='';
+  try
+    Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
+    Req.Open(Metod, RequestURL, False);
+    Req.SetRequestHeader('Content-Type','application/json; charset=utf-8');
+    Req.SetRequestHeader('Cache-control','no-cache');
+    Req.SetRequestHeader('Connection','Keep-Alive');
+    Req.SetRequestHeader('Proxy-Connection','keep-alive');
+    Req.SetRequestHeader('Accept','application/json');
+    Req.Send;
+    Req.WaitForResponse;
+    GetRegStatus(Req.Status);
+  finally
+    OV:=Req.ResponseStream;
+    TVarData(OV).vType:=varUnknown;
+    os:=TOLEStream.Create(IStream(TVarData(OV).VUnknown));
+    im:=TMemoryStream.Create;
+    im.CopyFrom(os,os.Size);
+    im.Position:=0;
+    str:=StreamToString(im);
+    str:=Utf8ToAnsi(str);
+    if Length(str)>0 then
+     try
+       ABuilder := TStringCatHelper.Create;
+       Json := JSONBase.Parser(Trim(str), False);
+       str:='';
+       str:=PChar(Trim(Json.ToString(4,False)));
+       mmo1.Lines.Add(Trim(str));
+       lst2.Items.Add(Trim(str));
+       if Pos('translatedText',Trim(str)) > 0 then Result:=Trim(Json.GetSTS('translatedText',Json,0,ABuilder,7)) else
+       Result := PChar(Trim(Json.ToString(4,False)));
+     finally
+       FreeAndNil(ABuilder);
+     end;
+  end;
+except
+  Result:='Error Out Json';
+  Exit;
+end;
+end;
+
+//Autorisation
 function TmyChatGPT.PostParam(Metod: string; RequestURL: string; Params: string; Bearer: string): string;
 var
   Req: OleVariant;
@@ -885,11 +967,19 @@ procedure TmyChatGPT.FormCreate(Sender: TObject);
 var Url : string; i : Integer; s,s1,str: string;
 begin
 try
-   Url := 'https://api.openai.com/v1/completions';
+      DecodeDate(Now,wy,wm,wd);
+      myDir := FormatDateTime('dd',Now)+'.'+FormatDateTime('mm',Now)+'.'+FormatDateTime('yyyy',Now);
+   if not DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)) then  ForceDirectories(GetCurrentDir+'\'+IntToStr(wy));
+   if not DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)) then  ForceDirectories(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy));
+   if not DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir) then ForceDirectories(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir);
+      Url := 'https://api.openai.com/v1/completions';
    if FileExists(FileName) then DeleteFile(FileName);
       cbbSize.ItemIndex := 0;
       TrayIcon1.IconVisible := True;
-   if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then ApiKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
+   if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then begin
+      ApiKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
+      GoogleLanguageApiKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','GoogleLanguageApiKey');
+   end;
    if FileExists(ExtractFileDir(ParamStr(0))+'\prompts.csv') then begin
     try
      try
@@ -924,6 +1014,18 @@ try
       //
     end;
    end;
+   if sSkinForm = 0 then begin
+     ResStream := TResourceStream.Create(HInstance, 'Office12S', RT_RCDATA);   //Office12Style.RES
+   try
+     sSkinManager1.InternalSkins.Add;
+     sSkinManager1.InternalSkins[sSkinManager1.InternalSkins.Count - 1].Name := SkinName;
+     sSkinManager1.InternalSkins[sSkinManager1.InternalSkins.Count - 1].PackedData.LoadFromStream(ResStream);
+     sSkinManager1.SkinName := SkinName;
+     sSkinManager1.Active := True;
+   finally
+     FreeAndNil(ResStream);
+   end;
+   end else FreeAndNil(sSkinManager1);
 except
   Exit;
 end;
@@ -932,8 +1034,10 @@ end;
 procedure TmyChatGPT.chksaveClick(Sender: TObject);
 begin
   if chksave.Checked then begin
-     lst2.Items.SaveToFile('Dialog.txt');
-     mmo1.Lines.SaveToFile('Respons.txt');
+  if DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir) then begin
+     lst2.Items.SaveToFile(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir+'\Dialog.txt');
+     mmo1.Lines.SaveToFile(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir+'\Respons.txt');
+  end;
      lst2.Items.Clear;
      mmo1.Lines.Clear;
      Sleep(500);
@@ -962,14 +1066,14 @@ if Key = #13 then
 if Length(Trim(ApiKey)) > 0 then begin
 try
     str:='';
-    //str:=InputBox('Your question: ?','Hello','');
+    btnTranc.Enabled := True;
     str := edt1.Text; edt1.Clear;
     if Length(str) > 0 then begin
        Url := 'https://api.openai.com/v1/chat/completions';
        Memo1.Lines.Add(PostParam('POST',Url,'{  "model": "gpt-3.5-turbo",  "messages": [{"role": "user", "content": "'+str+'!"}]}',ApiKey));
-       Memo2.Clear;        //Url := 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&hl=en-US&dt=t&dt=bd&dj=1&source=icon&tk=310461.310461&op=translate&q=';
+       Memo2.Clear;
        str := Trim(Memo1.Lines.Text);
-       Memo2.Lines.Add(str);       //Memo2.Lines.Add(PostTranslate('POST',Url,''+Trim(str)+''));
+       Memo2.Lines.Add(str);      
        Application.ProcessMessages;
      try
        CoInitialize(nil);
@@ -1022,12 +1126,8 @@ begin
 try
   uStr1.Free;
   uStr2.Free;
-  lst2.Items.SaveToFile('Dialog.txt');
-  mmo1.Lines.SaveToFile('Respons.txt');
-  lst2.Items.Clear;
-  mmo1.Lines.Clear;
-  Sleep(500);
-  stat1.SimpleText := 'Saved successfully';
+  if sSkinManager1 <> nil then FreeAndNil(sSkinManager1);
+  Application.Terminate;
 except
   Exit;
 end;
@@ -1052,14 +1152,17 @@ end;
 procedure TmyChatGPT.Exit1Click(Sender: TObject);
 begin
 try
-  lst2.Items.SaveToFile('Dialog.txt');
-  mmo1.Lines.SaveToFile('Respons.txt');
+  if DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir) then begin
+     lst2.Items.SaveToFile(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir+'\Dialog.txt');
+     mmo1.Lines.SaveToFile(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)+'\'+myDir+'\Respons.txt');
+  end;
   lst2.Items.Clear;
   mmo1.Lines.Clear;
   Sleep(500);
   stat1.SimpleText := 'Saved successfully';
   uStr1.Free;
   uStr2.Free;
+  if sSkinManager1 <> nil then FreeAndNil(sSkinManager1);  
   Application.Terminate;
   Close;
 except
@@ -1101,6 +1204,7 @@ try
   fSetting := TfSetting.Create(Self);
   fSetting.ShowModal;
   ApiKey := fSetting.uToken;
+  GoogleLanguageApiKey := fSetting.uGoogleLanguageApiKey;
   temper := fSetting.temper;
   stat1.SimpleText := 'Token saved successfully';
  finally
@@ -1202,7 +1306,168 @@ end;
 
 procedure TmyChatGPT.cPromptsChange(Sender: TObject);
 begin
+try
+  if cPrompts.ItemIndex = -1 then Exit;
   if cPrompts.Items.Count > 0 then edt1.Text := uStr2.Strings[cPrompts.ItemIndex];
+except
+  Exit;
+end;
+end;
+
+//TextEncode
+function UrlEncode(Str: ansistring): ansistring; 
+  function CharToHex(Ch: ansiChar): Integer;
+  asm
+    and eax, 0FFh
+    mov ah, al
+    shr al, 4
+    and ah, 00fh
+    cmp al, 00ah
+    jl @@10
+    sub al, 00ah
+    add al, 041h
+    jmp @@20
+@@10:
+    add al, 030h
+@@20:
+    cmp ah, 00ah
+    jl @@30
+    sub ah, 00ah
+    add ah, 041h
+    jmp @@40
+@@30:
+    add ah, 030h
+@@40:
+    shl eax, 8
+    mov al, '%'
+  end;
+var
+  i, Len: Integer;
+  Ch: ansiChar;
+  N: Integer;
+  P: PansiChar;
+begin
+  Result := '';
+  Len := Length(Str);
+  P := PansiChar(@N);
+  for i := 1 to Len do
+  begin
+    Ch := Str[i];
+    if Ch in ['0'..'9', 'A'..'Z', 'a'..'z', '_'] then
+      Result := Result + Ch
+    else
+    begin
+      if Ch = ' ' then
+        Result := Result + '+'
+      else
+      begin
+        N := CharToHex(Ch);
+        Result := Result + P;
+      end;
+    end;
+  end;
+end;
+ 
+function UrlDecode(Str: Ansistring): Ansistring;
+  function HexToChar(W: word): AnsiChar;
+  asm
+   cmp ah, 030h
+   jl @@error
+   cmp ah, 039h
+   jg @@10
+   sub ah, 30h
+   jmp @@30
+@@10:
+   cmp ah, 041h
+   jl @@error
+   cmp ah, 046h
+   jg @@20
+   sub ah, 041h
+   add ah, 00Ah
+   jmp @@30
+@@20:
+   cmp ah, 061h
+   jl @@error
+   cmp al, 066h
+   jg @@error
+   sub ah, 061h
+   add ah, 00Ah
+@@30:
+   cmp al, 030h
+   jl @@error
+   cmp al, 039h
+   jg @@40
+   sub al, 030h
+   jmp @@60
+@@40:
+   cmp al, 041h
+   jl @@error
+   cmp al, 046h
+   jg @@50
+   sub al, 041h
+   add al, 00Ah
+   jmp @@60
+@@50:
+   cmp al, 061h
+   jl @@error
+   cmp al, 066h
+   jg @@error
+   sub al, 061h
+   add al, 00Ah
+@@60:
+   shl al, 4
+   or al, ah
+   ret
+@@error:
+   xor al, al
+  end; 
+  function GetCh(P: PAnsiChar; var Ch: AnsiChar): AnsiChar;
+  begin
+    Ch := P^;
+    Result := Ch;
+  end;
+var
+  P: PAnsiChar;
+  Ch: AnsiChar;
+begin
+  Result := '';
+  P := @Str[1];
+  while GetCh(P, Ch) <> #0 do
+  begin
+    case Ch of
+      '+': Result := Result + ' ';
+      '%':
+        begin
+          Inc(P);
+          Result := Result + HexToChar(PWord(P)^);
+          Inc(P);
+        end;
+    else
+      Result := Result + Ch;
+    end;
+    Inc(P);
+  end;
+end;
+
+procedure TmyChatGPT.btnTrancClick(Sender: TObject);
+var Url: string;
+begin
+try
+  if Length(edt1.Text) > 0 then begin
+     Memo1.Clear;
+     Memo2.Clear;
+     btnTranc.Enabled := False;
+  if Length(Trim(GoogleLanguageApiKey)) > 0 then begin
+     Url := 'https://www.googleapis.com/language/translate/v2?key='+GoogleLanguageApiKey+'&source=ru&target=en&q='+UrlEncode(AnsiToUtf8(edt1.Text));;
+     edt1.Text := GetTranslate('GET',Url);
+  end else begin
+     MessageBox(Handle,PChar('No GoogleLanguageApiKey, please enter a GoogleLanguageApiKey!'), PChar('Attention'), 64);
+     btnToken.Click;
+  end;
+  end;
+except
+  Exit;
+end;
 end;
 
 end.
