@@ -1,6 +1,6 @@
 object myChatGPT: TmyChatGPT
-  Left = 217
-  Top = 171
+  Left = 214
+  Top = 176
   Width = 1266
   Height = 659
   BorderIcons = [biSystemMenu, biMinimize]
@@ -19,28 +19,27 @@ object myChatGPT: TmyChatGPT
   PixelsPerInch = 96
   TextHeight = 13
   object spl2: TSplitter
-    Left = 939
+    Left = 931
     Top = 0
-    Height = 628
+    Height = 620
     Align = alRight
   end
   object spl3: TSplitter
     Left = 145
     Top = 0
-    Height = 628
+    Height = 620
   end
   object grp1: TGroupBox
     Left = 148
     Top = 0
-    Width = 791
-    Height = 628
+    Width = 783
+    Height = 620
     Align = alClient
-    Caption = 'Response ChatGPT'
     TabOrder = 0
     object spl1: TSplitter
       Left = 2
-      Top = 582
-      Width = 787
+      Top = 574
+      Width = 779
       Height = 3
       Cursor = crVSplit
       Align = alBottom
@@ -66,16 +65,16 @@ object myChatGPT: TmyChatGPT
     object grpTrans: TGroupBox
       Left = 2
       Top = 15
-      Width = 787
-      Height = 567
+      Width = 779
+      Height = 559
       Align = alClient
       Caption = 'Translate [EN/RU]'
       TabOrder = 1
       object Memo2: TMemo
         Left = 2
         Top = 15
-        Width = 783
-        Height = 550
+        Width = 775
+        Height = 534
         Align = alClient
         Color = clSkyBlue
         Font.Charset = DEFAULT_CHARSET
@@ -88,22 +87,30 @@ object myChatGPT: TmyChatGPT
         ScrollBars = ssVertical
         TabOrder = 0
       end
+      object ProgressBar1: TProgressBar
+        Left = 2
+        Top = 549
+        Width = 775
+        Height = 8
+        Align = alBottom
+        TabOrder = 1
+      end
     end
     object pnl2: TPanel
       Left = 2
-      Top = 585
-      Width = 787
+      Top = 577
+      Width = 779
       Height = 41
       Align = alBottom
       BevelInner = bvLowered
       TabOrder = 2
       DesignSize = (
-        787
+        779
         41)
       object btnTranc: TSpeedButton
-        Left = 748
+        Left = 746
         Top = 8
-        Width = 32
+        Width = 28
         Height = 27
         Hint = 'A translation from Russian to English'
         Anchors = [akLeft, akTop, akRight, akBottom]
@@ -134,10 +141,10 @@ object myChatGPT: TmyChatGPT
     end
   end
   object grp2: TGroupBox
-    Left = 942
+    Left = 934
     Top = 0
     Width = 316
-    Height = 628
+    Height = 620
     Align = alRight
     Caption = 'Response Json'
     TabOrder = 1
@@ -145,11 +152,11 @@ object myChatGPT: TmyChatGPT
       Left = 2
       Top = 15
       Width = 312
-      Height = 611
+      Height = 603
       Align = alClient
-      Color = clNone
+      Color = clSkyBlue
       Font.Charset = DEFAULT_CHARSET
-      Font.Color = clYellow
+      Font.Color = clMaroon
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = []
@@ -165,7 +172,7 @@ object myChatGPT: TmyChatGPT
     Left = 0
     Top = 0
     Width = 145
-    Height = 628
+    Height = 620
     Align = alLeft
     BevelInner = bvLowered
     TabOrder = 2
@@ -173,7 +180,7 @@ object myChatGPT: TmyChatGPT
       Left = 2
       Top = 2
       Width = 141
-      Height = 270
+      Height = 262
       Align = alClient
       Caption = 'Settings'
       TabOrder = 0
@@ -202,7 +209,7 @@ object myChatGPT: TmyChatGPT
       object chksave: TCheckBox
         Left = 8
         Top = 208
-        Width = 57
+        Width = 49
         Height = 17
         Caption = 'Save'
         TabOrder = 1
@@ -218,7 +225,7 @@ object myChatGPT: TmyChatGPT
       end
       object btnCreateImage: TButton
         Left = 8
-        Top = 88
+        Top = 120
         Width = 121
         Height = 25
         Action = aCreateImage
@@ -226,7 +233,7 @@ object myChatGPT: TmyChatGPT
       end
       object btnListmodels: TButton
         Left = 8
-        Top = 120
+        Top = 88
         Width = 121
         Height = 25
         Action = aListModels
@@ -261,10 +268,23 @@ object myChatGPT: TmyChatGPT
         TabOrder = 7
         OnChange = cPromptsChange
       end
+      object chkVoice: TCheckBox
+        Left = 73
+        Top = 208
+        Width = 57
+        Height = 17
+        Hint = 'Turn voice on or off'
+        Caption = 'Voice'
+        Checked = True
+        ParentShowHint = False
+        ShowHint = True
+        State = cbChecked
+        TabOrder = 8
+      end
     end
     object grpClean: TGroupBox
       Left = 2
-      Top = 272
+      Top = 264
       Width = 141
       Height = 354
       Align = alBottom
@@ -2485,7 +2505,7 @@ object myChatGPT: TmyChatGPT
     Left = 974
     Top = 87
     Bitmap = {
-      494C010102000800300010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800340010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000010000000E1414143F28282862282828621414143F0000000E0000

@@ -64,6 +64,39 @@ type
     dt:String;
   end;
 
+type
+  TProgressProc = procedure (aProgress: Integer) of object; // 0 to 100
+  TProgressThread = class(TThread)
+                  private
+                    FProgressProc: TProgressProc;
+                    FProgressValue: integer;
+                  procedure SynchedProgress;
+                  protected
+                  procedure Progress(aProgress: integer); virtual;
+                  public
+                  constructor Create(aProgressProc: TProgressProc; CreateSuspended: Boolean = False); reintroduce; virtual;
+ end;
+ TMyThread = class(TProgressThread)
+                  protected
+                  procedure Execute; override;
+ end;
+
+type
+  TAnimationThread = class(TThread)
+  private
+    { Private declarations }
+    FWnd: HWND;
+    FPaintRect: TRect;
+    FbkColor, FfgColor: TColor;
+    FInterval: integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(paintsurface : TWinControl; {Control to paint on }
+      paintrect : TRect;          {area for animation bar }
+      bkColor, barcolor : TColor; {colors to use }
+      interval : integer);       {wait in msecs between paints}
+  end;
 
 type
   TmyChatGPT = class(TForm)
@@ -109,6 +142,8 @@ type
     cPrompts: TComboBox;
     sSkinManager1: TsSkinManager;
     btnTranc: TSpeedButton;
+    ProgressBar1: TProgressBar;
+    chkVoice: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure chksaveClick(Sender: TObject);
     procedure lst2Click(Sender: TObject);
@@ -135,6 +170,8 @@ type
     { Private declarations }
     sSkinForm: integer;
     ResStream: TResourceStream;
+    fMyThread: TMyThread;
+    procedure UpdateProgressBar(aProgress: Integer);
     procedure GetRegStatus(id: Integer);
     function GetTranslate(Metod: string; RequestURL: string): string;
     function PostParam(Metod: string; RequestURL: string; Params: string; Bearer: string): string;
@@ -149,6 +186,7 @@ type
     procedure WMQueryEndSession(var Message: TMessage); message WM_QUERYENDSESSION;
   public
     { Public declarations }
+    uText     : string;
     ApiKey,GoogleLanguageApiKey : string;
     lng       : TStringList;
     uStr,uStr1,
@@ -270,136 +308,142 @@ except
 end;
 end;
 
-// Write values to a INI file
-procedure TmyChatGPT.WriteIniFile(uFile: string; Section_Name: string; Key_Name: string; StrValue: string); //'c:\MyIni.ini'
- var
-   ini: TIniFile;
+constructor TAnimationThread.Create(paintsurface : TWinControl;
+  paintrect : TRect; bkColor, barcolor : TColor; interval : integer);
+begin
+  inherited Create(True);
+  FWnd := paintsurface.Handle;
+  FPaintRect := paintrect;
+  FbkColor := bkColor;
+  FfgColor := barColor;
+  FInterval := interval;
+  FreeOnterminate := True;
+  Resume;
+end; { TAnimationThread.Create }
+
+procedure TAnimationThread.Execute;
+var
+  image : TBitmap;
+  DC : HDC;
+  left, right : integer;
+  increment : integer;
+  imagerect : TRect;
+  state : (incRight, incLeft, decLeft, decRight);
+begin
+  Image := TBitmap.Create;
+  try
+    with Image do 
+    begin
+      Width := FPaintRect.Right - FPaintRect.Left;
+      Height := FPaintRect.Bottom - FPaintRect.Top;
+      imagerect := Rect(0, 0, Width, Height);
+    end; { with }
+    left := 0;
+    right := 0;
+    increment := imagerect.right div 50;
+    state := Low(State);
+    while not Terminated do 
+    begin
+      with Image.Canvas do 
+      begin
+        Brush.Color := FbkColor;
+        FillRect(imagerect);
+        case state of
+          incRight: 
+          begin
+            Inc(right, increment);
+            if right > imagerect.right then 
+            begin
+              right := imagerect.right;
+              Inc(state);
+            end; { if }
+          end; { Case incRight }
+          incLeft: 
+          begin
+            Inc(left, increment);
+            if left >= right then 
+            begin
+              left := right;
+              Inc(state);
+            end; { if }
+          end; { Case incLeft }
+          decLeft: 
+          begin
+            Dec(left, increment);
+            if left <= 0 then 
+            begin
+              left := 0;
+              Inc(state);
+            end; { if }
+          end; { Case decLeft }
+          decRight: 
+          begin
+            Dec(right, increment);
+            if right <= 0 then 
+            begin
+              right := 0;
+              state := incRight;
+            end; { if }
+          end; { Case decLeft }
+        end; { Case }
+        Brush.Color := FfgColor;
+        FillRect(Rect(left, imagerect.top, right, imagerect.bottom));
+      end; { with }
+      DC := GetDC(FWnd);
+      if DC <> 0 then
+        try
+          BitBlt(DC,
+            FPaintRect.Left,
+            FPaintRect.Top,
+            imagerect.right,
+            imagerect.bottom,
+            Image.Canvas.handle,
+            0, 0,
+            SRCCOPY);
+        finally
+          ReleaseDC(FWnd, DC);
+        end;
+      Sleep(FInterval);
+    end; { While }
+  finally
+    Image.Free;
+  end;
+  InvalidateRect(FWnd, nil, True);
+end; { TAnimationThread.Execute }
+
+constructor TProgressThread.Create(aProgressProc: TProgressProc; CreateSuspended: Boolean = False);
+begin
+  inherited Create(CreateSuspended);
+            FreeOnTerminate := True;
+            FProgressProc := aProgressProc;
+end;
+
+procedure TProgressThread.Progress(aProgress: Integer);
+begin
+  FProgressValue := aProgress;
+  Synchronize(SynchedProgress);
+end;
+
+procedure TProgressThread.SynchedProgress;
+begin
+if Assigned(FProgressProc) then FProgressProc(FProgressValue);
+end;
+
+{ TMyThread }
+procedure TMyThread.Execute;
+var I: Integer;
 begin
 try
-   // Create INI Object and open or create file test.ini
-    ini := TIniFile.Create(uFile);
-   try
-     // Write a string value to the INI file.
-    ini.WriteString(Section_Name, Key_Name, StrValue);
-   finally
-     ini.Free;
-   end;
+    Progress(0);
+    for I := 1 to 100 do begin
+        Sleep(1000);
+        Progress(I);
+    end;
 except
   Exit;
 end;
 end;
 
-
- // Read values from an INI file
-function TmyChatGPT.ReadIniFile(uFile: string; Section_Name: string; Key_Name: string) : string;
- var
-   ini: TIniFile;
-   res: string;
-begin
-try
-     Result := '';
-     // Create INI Object and open or create file test.ini
-     ini := TIniFile.Create(uFile);
-   try
-     res := ini.ReadString(Section_Name, Key_Name, ''); //MessageDlg('Value of Section:  ' + res, mtInformation, [mbOK], 0);
-     Result := res;
-   finally
-     ini.Free;
-   end;
-except
-  Exit;
-end;
-end;
-
- // Read all sections
-procedure TmyChatGPT.ReadAllSecIniFile(uFile: string);
- var
-    ini: TIniFile;
-    uList: TStringList;
-begin
-try
-  try
-     uList := TStringList.Create;
-     ini := TIniFile.Create('MyIni.ini');
-   try
-     ini.ReadSections(uList);
-     if uList.Count > 0 then MessageDlg('All Section:  ' + uList.Text, mtInformation, [mbOK], 0);
-   finally
-     ini.Free;
-   end;
-  finally
-    uList.Free;
-  end;
-except
-  Exit;
-end;
-end;
-
- // Read a section
-procedure TmyChatGPT.ReadSecIniFile(uFile: string; Section_Name: string);
-var
-    ini: TIniFile;
-    uList: TStringList;
-begin
-try
-  try
-    uList := TStringList.Create;
-    ini := TIniFile.Create(uFile);
-   try
-    ini.ReadSection(Section_Name, uList);
-    if uList.Count > 0 then MessageDlg('Read of Section:  ' + uList.Text, mtInformation, [mbOK], 0);
-   finally
-    ini.Free;
-   end;
-  finally
-    uList.Free;
-  end;
-except
-   Exit;
-end;
-end;
-
- // Read section values
-procedure TmyChatGPT.ReadValueSecIniFile(uFile: string; Section_Name: string);
-var
-    ini: TIniFile;
-    uList: TStringList;
-begin
-try
-  try
-    uList := TStringList.Create;
-    ini := TIniFile.Create(uFile);
-   try
-    ini.ReadSectionValues(Section_Name, uList);
-    if uList.Count > 0 then MessageDlg('Value of Section:  ' + uList.Text, mtInformation, [mbOK], 0);
-   finally
-    ini.Free;
-   end;
-  finally
-    uList.Free;
-  end;
-except
-   Exit;
-end;
-end;
-
- // Erase a section
-procedure TmyChatGPT.EraseSecIniFile(uFile: string; Section_Name: string);
-var
-    ini: TIniFile;
-begin
-try
-    ini := TIniFile.Create(uFile);
-   try
-    ini.EraseSection(Section_Name);
-    MessageDlg('Erase of Section:  ' + Section_Name + ' successfully', mtInformation, [mbOK], 0);
-   finally
-    ini.Free;
-   end;
-except
-   Exit;
-end;
-end;
 
 procedure WinInet_HttpGet(const Url: string;Stream:TStream);overload;
 const BuffSize = 1024*1024;
@@ -569,6 +613,177 @@ begin
   end;
 end;
 
+{ TForm1 }
+procedure TmyChatGPT.UpdateProgressBar(aProgress: Integer);
+var str0: string; voice: OleVariant; ani: TAnimationThread;
+    r: TRect;
+begin
+try
+  //   ProgressBar1.Position := aProgress;
+  //   ProgressBar1.Update; // Make sure to repaint the progressbar
+  //if aProgress >= 100 then
+  if Length(uText) > 0 then begin
+     fMyThread := nil;
+     r := ProgressBar1.ClientRect;
+     InflateRect(r, - ProgressBar1.BorderWidth, - ProgressBar1.BorderWidth);
+     ani := TanimationThread.Create(ProgressBar1, r, ProgressBar1.Brush.Color, clGreen, 25);
+     Application.ProcessMessages;
+     CoInitialize(nil);
+  try
+     voice := CreateOleObject('SAPI.SpVoice');
+     str0 := TranslateText(Trim(uText),'en','ru'); //'TranslateApiExceptionMethod: Translate()Message: AppId is over the quotamessage id=V2_Rest_Translate.BNZE.1C19.0304T1827.9F76D4'
+     if Pos('TranslateApiExceptionMethod',str0) = 0 then begin
+        Memo2.Lines.Add(str0);
+        lst2.Items.Add(Trim(str0));
+     end;
+     str0 := Trim(DetectLanguage(uText));
+     lng:=GetLanguagesForTranslate;
+     lng:=GetLanguagesForSpeak; {}
+     if chkVoice.Checked then voice.speak(Trim(uText));
+     uText := '';
+  finally
+     CoUninitialize;
+     ani.Terminate;
+     Application.ProcessMessages;
+  end;
+  end else begin
+     if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean;
+  end;
+except
+  Exit;
+end;
+end;
+
+// Write values to a INI file
+procedure TmyChatGPT.WriteIniFile(uFile: string; Section_Name: string; Key_Name: string; StrValue: string); //'c:\MyIni.ini'
+ var
+   ini: TIniFile;
+begin
+try
+   // Create INI Object and open or create file test.ini
+    ini := TIniFile.Create(uFile);
+   try
+     // Write a string value to the INI file.
+    ini.WriteString(Section_Name, Key_Name, StrValue);
+   finally
+     ini.Free;
+   end;
+except
+  Exit;
+end;
+end;
+
+
+ // Read values from an INI file
+function TmyChatGPT.ReadIniFile(uFile: string; Section_Name: string; Key_Name: string) : string;
+ var
+   ini: TIniFile;
+   res: string;
+begin
+try
+     Result := '';
+     // Create INI Object and open or create file test.ini
+     ini := TIniFile.Create(uFile);
+   try
+     res := ini.ReadString(Section_Name, Key_Name, ''); //MessageDlg('Value of Section:  ' + res, mtInformation, [mbOK], 0);
+     Result := res;
+   finally
+     ini.Free;
+   end;
+except
+  Exit;
+end;
+end;
+
+ // Read all sections
+procedure TmyChatGPT.ReadAllSecIniFile(uFile: string);
+ var
+    ini: TIniFile;
+    uList: TStringList;
+begin
+try
+  try
+     uList := TStringList.Create;
+     ini := TIniFile.Create('MyIni.ini');
+   try
+     ini.ReadSections(uList);
+     if uList.Count > 0 then MessageDlg('All Section:  ' + uList.Text, mtInformation, [mbOK], 0);
+   finally
+     ini.Free;
+   end;
+  finally
+    uList.Free;
+  end;
+except
+  Exit;
+end;
+end;
+
+ // Read a section
+procedure TmyChatGPT.ReadSecIniFile(uFile: string; Section_Name: string);
+var
+    ini: TIniFile;
+    uList: TStringList;
+begin
+try
+  try
+    uList := TStringList.Create;
+    ini := TIniFile.Create(uFile);
+   try
+    ini.ReadSection(Section_Name, uList);
+    if uList.Count > 0 then MessageDlg('Read of Section:  ' + uList.Text, mtInformation, [mbOK], 0);
+   finally
+    ini.Free;
+   end;
+  finally
+    uList.Free;
+  end;
+except
+   Exit;
+end;
+end;
+
+ // Read section values
+procedure TmyChatGPT.ReadValueSecIniFile(uFile: string; Section_Name: string);
+var
+    ini: TIniFile;
+    uList: TStringList;
+begin
+try
+  try
+    uList := TStringList.Create;
+    ini := TIniFile.Create(uFile);
+   try
+    ini.ReadSectionValues(Section_Name, uList);
+    if uList.Count > 0 then MessageDlg('Value of Section:  ' + uList.Text, mtInformation, [mbOK], 0);
+   finally
+    ini.Free;
+   end;
+  finally
+    uList.Free;
+  end;
+except
+   Exit;
+end;
+end;
+
+ // Erase a section
+procedure TmyChatGPT.EraseSecIniFile(uFile: string; Section_Name: string);
+var
+    ini: TIniFile;
+begin
+try
+    ini := TIniFile.Create(uFile);
+   try
+    ini.EraseSection(Section_Name);
+    MessageDlg('Erase of Section:  ' + Section_Name + ' successfully', mtInformation, [mbOK], 0);
+   finally
+    ini.Free;
+   end;
+except
+   Exit;
+end;
+end;
 
 function GetDosOutput(CommandLine: string; Work: string = 'C:\'): string;  { Run a DOS program and retrieve its output dynamically while it is running. }
 var
@@ -710,10 +925,8 @@ begin
     vDlg.DefaultExt := 'json';
     vDlg.FilterIndex := 1;
     vDlg.FileName := FParams.DocName + '_' + FParams.ObjName;
-    if vDlg.Execute then
-      FFileName := vDlg.FileName
-    else
-      FFileName := '';
+    //if vDlg.Execute then FFileName := vDlg.FileName else FFileName := '';
+    FFileName := vDlg.InitialDir +'\'+ vDlg.FileName;
   finally
     vDlg.Free;
   end
@@ -967,6 +1180,7 @@ procedure TmyChatGPT.FormCreate(Sender: TObject);
 var Url : string; i : Integer; s,s1,str: string;
 begin
 try
+      TrayIcon1.IconVisible := True;
       DecodeDate(Now,wy,wm,wd);
       myDir := FormatDateTime('dd',Now)+'.'+FormatDateTime('mm',Now)+'.'+FormatDateTime('yyyy',Now);
    if not DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)) then  ForceDirectories(GetCurrentDir+'\'+IntToStr(wy));
@@ -1060,7 +1274,7 @@ begin
 end;
 
 procedure TmyChatGPT.edt1KeyPress(Sender: TObject; var Key: Char);
-var str,str0,Url : string; i : Integer; voice : OleVariant;
+var str,Url : string; i : Integer;
 begin
 if Key = #13 then
 if Length(Trim(ApiKey)) > 0 then begin
@@ -1076,20 +1290,9 @@ try
        Memo2.Lines.Add(str);      
        Application.ProcessMessages;
      try
-       CoInitialize(nil);
-      try
-      voice := CreateOleObject('SAPI.SpVoice');
-      str0 := TranslateText(Trim(str),'en','ru');
-      Memo2.Lines.Add(str0);
-      lst2.Items.Add(Trim(str0));
-      str0 := Trim(DetectLanguage(str));
-      lng:=GetLanguagesForTranslate;
-      lng:=GetLanguagesForSpeak; {}
-      voice.speak(Trim(str));
-      finally
-        CoUninitialize;
-      end;
-      Application.ProcessMessages;
+       uText := str;
+       if not Assigned(fMyThread) then fMyThread := TMyThread.Create(UpdateProgressBar);
+       Application.ProcessMessages;
      except
        on E:Exception do
           Writeln(E.Classname, ':', E.Message);
@@ -1104,7 +1307,7 @@ try
 except
   Exit;
 end;
-end else begin
+end else if (Length(Trim(ApiKey)) = 0) then begin
   MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
   btnToken.Click;
 end;
@@ -1114,7 +1317,6 @@ procedure TmyChatGPT.FormActivate(Sender: TObject);
 begin
 try
   edt1.SetFocus;
-  TrayIcon1.IconVisible := True;
   if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean;
 except
   Exit;
@@ -1192,6 +1394,8 @@ try
   TrayIcon1.IconList := ImageList1;  //TrayIcon1.ShowBalloonHint('The ChatGPT', 'Do you here?', bitInfo, 11);  //bitInfo, bitWarning, bitError,
   TrayIcon1.CycleInterval := 300;
   TrayIcon1.CycleIcons := True;
+  TrayIcon1.ShowMainForm;    // ALWAYS use this method to restore!!!
+  if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean;
 except
   Exit;
 end;
@@ -1224,7 +1428,7 @@ try
   str := '';
   str := InputBox('Add your prompt ?','Say this is a test','');
   Url := 'https://api.openai.com/v1/completions';
-  if ((Length(Trim(ApiKey)) > 0)and(Length(str) > 0)) then PostParam('POST',Url,'{"model": "text-davinci-003", "prompt": "'+str+'", "temperature": 0, "max_tokens": 7}',ApiKey) else begin
+  if ((Length(Trim(ApiKey)) > 0)and(Length(str) > 0)) then PostParam('POST',Url,'{"model": "text-davinci-003", "prompt": "'+str+'", "temperature": 0, "max_tokens": 7}',ApiKey) else if (Length(Trim(ApiKey)) = 0) then begin
      MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
      btnToken.Click;
   end;
@@ -1256,7 +1460,7 @@ try
         FParams.Method := 'POST';
         THTTPRequest.Create(FParams);
      end;
-  end else begin
+  end else if (Length(Trim(ApiKey)) = 0) then begin
      MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
      btnToken.Click;
   end;
@@ -1272,7 +1476,7 @@ try
   Memo1.Clear;
   Memo2.Clear;
   Url := 'https://api.openai.com/v1/models';
-  if Length(Trim(ApiKey)) > 0 then PostParam('GET',url,'',ApiKey) else begin
+  if Length(Trim(ApiKey)) > 0 then PostParam('GET',url,'',ApiKey) else if (Length(Trim(ApiKey)) = 0) then begin
      MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
      btnToken.Click;
   end;
@@ -1295,7 +1499,7 @@ try
   Memo1.Clear;
   Memo2.Clear;
   Url := 'https://api.openai.com/v1/fine-tunes';
-  if Length(Trim(ApiKey)) > 0 then PostParam('GET',url,'',ApiKey) else begin
+  if Length(Trim(ApiKey)) > 0 then PostParam('GET',url,'',ApiKey) else if (Length(Trim(ApiKey)) = 0) then begin
      MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
      btnToken.Click;
   end;
@@ -1460,7 +1664,7 @@ try
   if Length(Trim(GoogleLanguageApiKey)) > 0 then begin
      Url := 'https://www.googleapis.com/language/translate/v2?key='+GoogleLanguageApiKey+'&source=ru&target=en&q='+UrlEncode(AnsiToUtf8(edt1.Text));;
      edt1.Text := GetTranslate('GET',Url);
-  end else begin
+  end else if (Length(Trim(GoogleLanguageApiKey)) = 0) then begin
      MessageBox(Handle,PChar('No GoogleLanguageApiKey, please enter a GoogleLanguageApiKey!'), PChar('Attention'), 64);
      btnToken.Click;
   end;
