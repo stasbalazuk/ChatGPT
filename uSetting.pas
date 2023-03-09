@@ -18,6 +18,10 @@ type
     btnSave: TBitBtn;
     grpGoogleLanguageApiKey: TGroupBox;
     mmoGoogleLanguageApiKey: TMemo;
+    grpTelegram: TGroupBox;
+    mmoTb: TMemo;
+    mmoChatID: TMemo;
+    spl1: TSplitter;
     procedure edtTempKeyPress(Sender: TObject; var Key: Char);
     procedure btnSaveClick(Sender: TObject);
     procedure FormActivate(Sender: TObject);
@@ -190,14 +194,18 @@ begin
 end;
 
 procedure TfSetting.btnSaveClick(Sender: TObject);
-var uTok,uGoogleKey : string;
+var uTok,uGoogleKey,uTelegKey,uTelegramChatID : string;
 begin
 try
      uTok := Trim(mmoToken.Text);
      uGoogleKey := Trim(mmoGoogleLanguageApiKey.Text);
+     uTelegKey := Trim(mmoTb.Text);
+     uTelegramChatID := Trim(mmoChatID.Text);
   if Length(uTok) > 0 then begin
      WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token',uTok);
      WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','GoogleLanguageApiKey',uGoogleKey);
+     WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','TelegramApiKey',uTelegKey);
+     WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','TelegramChatID',uTelegramChatID);
      WriteIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Setting','Temperature',Trim(edtTemp.Text));
      temper := StrToInt(edtTemp.Text);
      uToken := uTok;
@@ -224,6 +232,8 @@ try
 if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then begin
    mmoToken.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
    mmoGoogleLanguageApiKey.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','GoogleLanguageApiKey');
+   mmoTb.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','TelegramApiKey');
+   mmoChatID.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','TelegramChatID');
    edtTemp.Text := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Setting','Temperature');
 end;
 except

@@ -3,7 +3,7 @@ object fSetting: TfSetting
   Top = 312
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
-  ClientHeight = 222
+  ClientHeight = 287
   ClientWidth = 408
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -21,13 +21,13 @@ object fSetting: TfSetting
     Left = 0
     Top = 0
     Width = 408
-    Height = 174
+    Height = 239
     Align = alClient
     BevelInner = bvRaised
     TabOrder = 0
     object ltemp: TLabel
       Left = 8
-      Top = 152
+      Top = 214
       Width = 69
       Height = 13
       Caption = 'Temperature :'
@@ -54,7 +54,7 @@ object fSetting: TfSetting
     end
     object edtTemp: TEdit
       Left = 80
-      Top = 152
+      Top = 214
       Width = 41
       Height = 19
       BorderStyle = bsNone
@@ -66,7 +66,7 @@ object fSetting: TfSetting
     end
     object ud1: TUpDown
       Left = 121
-      Top = 152
+      Top = 214
       Width = 16
       Height = 19
       Associate = edtTemp
@@ -91,10 +91,45 @@ object fSetting: TfSetting
         TabOrder = 0
       end
     end
+    object grpTelegram: TGroupBox
+      Left = 2
+      Top = 145
+      Width = 404
+      Height = 64
+      Align = alTop
+      Caption = 
+        'Telegram ApiKey                                                 ' +
+        '                        ChatID'
+      TabOrder = 4
+      object spl1: TSplitter
+        Left = 301
+        Top = 15
+        Height = 47
+        Align = alRight
+      end
+      object mmoTb: TMemo
+        Left = 2
+        Top = 15
+        Width = 299
+        Height = 47
+        Align = alClient
+        ScrollBars = ssVertical
+        TabOrder = 0
+      end
+      object mmoChatID: TMemo
+        Left = 304
+        Top = 15
+        Width = 98
+        Height = 47
+        Align = alRight
+        ScrollBars = ssVertical
+        TabOrder = 1
+      end
+    end
   end
   object pnl2: TPanel
     Left = 0
-    Top = 174
+    Top = 239
     Width = 408
     Height = 48
     Align = alBottom

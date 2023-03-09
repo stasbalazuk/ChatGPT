@@ -33,6 +33,7 @@ const
   Msxml2_DOMDocument              = 'Msxml2.DOMDocument.6.0';
   CreateImage = '{"prompt": "#",  "n": 2,  "size": "@"}';
   SetFileName = 'ResponseJsonImage';
+  cURL = 'https://api.telegram.org/bot';
 
 type
   TGoogleLanguages = (Autodetect,Afrikaans,Albanian,Arabic,Basque,Belarusian,Bulgarian,Catalan,Chinese,Chinese_Traditional,
@@ -52,9 +53,11 @@ type
     RequestURL: string;
     Bearer: string;
     Token: string;
+    chatid: string;
     ObjId: string;
     clients: string;
     phone: string;
+    sendMessage: string;
     externalid: string;
     countryISO3166: string;
     phoneNumber: string;
@@ -71,6 +74,7 @@ type
                     FProgressProc: TProgressProc;
                     FProgressValue: integer;
                   procedure SynchedProgress;
+                  procedure ShowResult;
                   protected
                   procedure Progress(aProgress: integer); virtual;
                   public
@@ -144,6 +148,7 @@ type
     btnTranc: TSpeedButton;
     ProgressBar1: TProgressBar;
     chkVoice: TCheckBox;
+    chkTelegram: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure chksaveClick(Sender: TObject);
     procedure lst2Click(Sender: TObject);
@@ -187,7 +192,7 @@ type
   public
     { Public declarations }
     uText     : string;
-    ApiKey,GoogleLanguageApiKey : string;
+    ApiKey,GoogleLanguageApiKey,TelegKey,uTelegramChatID : string;
     lng       : TStringList;
     uStr,uStr1,
     uStr2     : TStringList;
@@ -211,6 +216,7 @@ type
     procedure SynchronizeResult;
     procedure SetFileName;
     procedure GetImage;
+    procedure GetMessageTelegram;
   public
     constructor Create(AParams: TWWWParams);
     destructor Destroy; override;
@@ -221,6 +227,7 @@ var
   FParams: TWWWParams;
   wy,wm,wd: Word;
   myDir: string;
+  StatMes: Boolean;
 
 implementation
 
@@ -260,6 +267,142 @@ end;
 destructor THTTPRequest.Destroy;
 begin
   inherited;
+end;
+
+
+//TextEncode
+function UrlEncode(Str: ansistring): ansistring; 
+  function CharToHex(Ch: ansiChar): Integer;
+  asm
+    and eax, 0FFh
+    mov ah, al
+    shr al, 4
+    and ah, 00fh
+    cmp al, 00ah
+    jl @@10
+    sub al, 00ah
+    add al, 041h
+    jmp @@20
+@@10:
+    add al, 030h
+@@20:
+    cmp ah, 00ah
+    jl @@30
+    sub ah, 00ah
+    add ah, 041h
+    jmp @@40
+@@30:
+    add ah, 030h
+@@40:
+    shl eax, 8
+    mov al, '%'
+  end;
+var
+  i, Len: Integer;
+  Ch: ansiChar;
+  N: Integer;
+  P: PansiChar;
+begin
+  Result := '';
+  Len := Length(Str);
+  P := PansiChar(@N);
+  for i := 1 to Len do
+  begin
+    Ch := Str[i];
+    if Ch in ['0'..'9', 'A'..'Z', 'a'..'z', '_'] then
+      Result := Result + Ch
+    else
+    begin
+      if Ch = ' ' then
+        Result := Result + '+'
+      else
+      begin
+        N := CharToHex(Ch);
+        Result := Result + P;
+      end;
+    end;
+  end;
+end;
+ 
+function UrlDecode(Str: Ansistring): Ansistring;
+  function HexToChar(W: word): AnsiChar;
+  asm
+   cmp ah, 030h
+   jl @@error
+   cmp ah, 039h
+   jg @@10
+   sub ah, 30h
+   jmp @@30
+@@10:
+   cmp ah, 041h
+   jl @@error
+   cmp ah, 046h
+   jg @@20
+   sub ah, 041h
+   add ah, 00Ah
+   jmp @@30
+@@20:
+   cmp ah, 061h
+   jl @@error
+   cmp al, 066h
+   jg @@error
+   sub ah, 061h
+   add ah, 00Ah
+@@30:
+   cmp al, 030h
+   jl @@error
+   cmp al, 039h
+   jg @@40
+   sub al, 030h
+   jmp @@60
+@@40:
+   cmp al, 041h
+   jl @@error
+   cmp al, 046h
+   jg @@50
+   sub al, 041h
+   add al, 00Ah
+   jmp @@60
+@@50:
+   cmp al, 061h
+   jl @@error
+   cmp al, 066h
+   jg @@error
+   sub al, 061h
+   add al, 00Ah
+@@60:
+   shl al, 4
+   or al, ah
+   ret
+@@error:
+   xor al, al
+  end; 
+  function GetCh(P: PAnsiChar; var Ch: AnsiChar): AnsiChar;
+  begin
+    Ch := P^;
+    Result := Ch;
+  end;
+var
+  P: PAnsiChar;
+  Ch: AnsiChar;
+begin
+  Result := '';
+  P := @Str[1];
+  while GetCh(P, Ch) <> #0 do
+  begin
+    case Ch of
+      '+': Result := Result + ' ';
+      '%':
+        begin
+          Inc(P);
+          Result := Result + HexToChar(PWord(P)^);
+          Inc(P);
+        end;
+    else
+      Result := Result + Ch;
+    end;
+    Inc(P);
+  end;
 end;
 
 procedure THTTPRequest.SynchronizeResult;
@@ -422,6 +565,7 @@ procedure TProgressThread.Progress(aProgress: Integer);
 begin
   FProgressValue := aProgress;
   Synchronize(SynchedProgress);
+  Synchronize(ShowResult);
 end;
 
 procedure TProgressThread.SynchedProgress;
@@ -439,6 +583,51 @@ try
         Sleep(1000);
         Progress(I);
     end;
+except
+  Exit;
+end;
+end;
+
+procedure TProgressThread.ShowResult;
+var str,Url : string; i : Integer;
+begin
+if not StatMes then Exit;
+try
+if Length(Trim(myChatGPT.ApiKey)) > 0 then begin
+try
+    str:='';
+    myChatGPT.btnTranc.Enabled := True;
+    str := myChatGPT.edt1.Text; myChatGPT.edt1.Clear;
+    if Length(str) > 0 then begin
+       Url := 'https://api.openai.com/v1/chat/completions';
+       myChatGPT.Memo1.Lines.Add(myChatGPT.PostParam('POST',Url,'{  "model": "gpt-3.5-turbo",  "messages": [{"role": "user", "content": "'+str+'!"}]}',myChatGPT.ApiKey));
+       myChatGPT.Memo2.Clear;
+       str := Trim(myChatGPT.Memo1.Lines.Text);
+       myChatGPT.Memo2.Lines.Add(str);      
+       Application.ProcessMessages;
+     try
+       myChatGPT.uText := str;
+       if not Assigned(myChatGPT.fMyThread) then myChatGPT.fMyThread := TMyThread.Create(myChatGPT.UpdateProgressBar);
+       Application.ProcessMessages;
+     except
+       on E:Exception do
+          Writeln(E.Classname, ':', E.Message);
+     end;
+       myChatGPT.lst2.Items.Add(Trim(myChatGPT.Memo1.Lines.Text));
+       myChatGPT.Memo1.Clear;
+    end else begin
+       myChatGPT.stat1.SimpleText := 'Empty text';
+       myChatGPT.TrayIcon1.ShowBalloonHint('The ChatGPT', 'Empty text', bitInfo, 11);  //bitInfo, bitWarning, bitError,
+       Application.ProcessMessages;
+    end;
+    StatMes := False;
+except
+  Exit;
+end;
+end else if (Length(Trim(myChatGPT.ApiKey)) = 0) then begin
+  MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
+  myChatGPT.btnToken.Click;
+end;
 except
   Exit;
 end;
@@ -935,11 +1124,124 @@ end;
 procedure THTTPRequest.Execute;
 begin
  try
-  Synchronize(GetImage);
+  if myChatGPT.chkTelegram.Checked then Synchronize(GetMessageTelegram) else Synchronize(GetImage);
  except
   Exit;
  end;  
 end;
+
+procedure THTTPRequest.GetMessageTelegram;
+var
+  Req: OleVariant;
+  OV: Variant;
+  os: TOLEStream;
+  im: TMemoryStream;
+  str : JSONString;
+  Json : JSONBase;
+  ABuilder: TStringCatHelper;
+begin
+  try
+    Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
+    Req.Open(FParams.Method, FParams.RequestURL, False);
+    Req.SetRequestHeader('Content-Type','application/json; charset=utf-8');
+    Req.SetRequestHeader('Cache-control','no-cache');
+    Req.SetRequestHeader('Connection','Keep-Alive');
+    Req.SetRequestHeader('Proxy-Connection','keep-alive');
+    Req.SetRequestHeader('Accept','application/json');
+    //Req.SetProxy(2,'gw:8080');
+    //Req.SetCredentials('GAMMA\balazuk', '23Qwerty',HTTPREQUEST_SETCREDENTIALS_FOR_PROXY);
+    Req.Send();
+    Req.WaitForResponse;
+  finally
+    OV:=Req.ResponseStream;
+    TVarData(OV).vType:=varUnknown;
+    os:=TOLEStream.Create(IStream(TVarData(OV).VUnknown));
+    im:=TMemoryStream.Create;
+    im.CopyFrom(os,os.Size);
+    im.Position:=0;
+    str:=StreamToString(im);
+    str:=Utf8ToAnsi(str);
+    if Length(str) > 0 then begin
+     try
+       ABuilder := TStringCatHelper.Create;
+       Json := JSONBase.Parser(Trim(str), False);
+       if Assigned(Json) then str := PChar(Trim(Json.ToString(4,False)));
+       if Length(str) > 0 then begin
+          myChatGPT.mmo1.Lines.Add(str);
+          myChatGPT.lst2.Items.Add(str);
+       end;
+          str := '';
+     finally
+       FreeAndNil(ABuilder);
+     end;
+    end;
+    Req := Unassigned; 
+  end;
+end;
+
+//Telegram
+{procedure THTTPRequest.GetMessageTelegram;  //(Metod: string; RequestURL: string; Params: string; Bearer: string)
+var
+  Req: OleVariant;
+  OV: Variant;
+  os: TOLEStream;
+  im: TMemoryStream;
+  Json : JSONBase;
+  str : JSONString;
+  ABuilder: TStringCatHelper;
+begin
+try
+  try
+    Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
+    Req.Open(FParams.Method, FParams.RequestURL, False);
+    Req.SetRequestHeader('Authorization', 'Bearer ' + FParams.Token); //Req.SetRequestHeader('OpenAI-Organization','org-bXVjI4KnG03UZemtwcyVmWoi');
+    Req.SetRequestHeader('Content-Type','application/json; charset=utf-8');
+    Req.SetRequestHeader('Cache-control','no-cache');
+    Req.SetRequestHeader('Connection','Keep-Alive');
+    Req.SetRequestHeader('Proxy-Connection','keep-alive');
+    Req.SetRequestHeader('Accept','application/json');
+    Req.Send();
+    Req.WaitForResponse;
+    myChatGPT.GetRegStatus(Req.Status);
+    if Req.Status = 200 then
+    begin
+    os := TOleStream.Create(IUnknown(Req.ResponseStream) as IStream);
+    im:=TMemoryStream.Create;
+    im.CopyFrom(os,os.Size);
+    im.Position:=0;
+    str:=StreamToString(im);
+    str:=Utf8ToAnsi(str);
+    if Length(str) > 0 then begin
+       ABuilder := TStringCatHelper.Create;
+       try
+          Json := JSONBase.Parser(Trim(str), False);
+       if Assigned(Json) then begin
+          str := '';
+          str := PChar(Trim(Json.ToString(4,False)));
+          myChatGPT.mmo1.Lines.Add(str);
+          myChatGPT.lst2.Items.Add(str);
+          str := '';
+          str:=Trim(Json.GetSTS('url',Json,0,ABuilder,7));
+          myChatGPT.Memo2.Lines.Add(str);
+          //if Length(str) > 0 then ShellExecute(Handle, 'open', PChar(str), nil, nil, SW_NORMAL);
+       end;
+       finally
+          FreeAndNil(ABuilder);
+       end;
+    end;
+    end
+    else
+    begin
+      FMessage := 'HTTP ' + IntToStr(Req.Status) + ' ' + Req.StatusText;
+    end;
+    Synchronize(SynchronizeResult);
+  finally
+    Req := Unassigned;
+  end;
+except
+  Exit;
+end;
+end; }
 
 //GetImage
 procedure THTTPRequest.GetImage;  //(Metod: string; RequestURL: string; Params: string; Bearer: string)
@@ -1193,6 +1495,8 @@ try
    if FileExists(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini') then begin
       ApiKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','Token');
       GoogleLanguageApiKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','GoogleLanguageApiKey');
+      TelegKey := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','TelegramApiKey');
+      uTelegramChatID := ReadIniFile(ExtractFileDir(ParamStr(0))+'\ChatGPT.ini','Bearer','TelegramChatID');
    end;
    if FileExists(ExtractFileDir(ParamStr(0))+'\prompts.csv') then begin
     try
@@ -1274,42 +1578,32 @@ begin
 end;
 
 procedure TmyChatGPT.edt1KeyPress(Sender: TObject; var Key: Char);
-var str,Url : string; i : Integer;
+var
+  ThreadBegin: TMyThread;
+  ProgressProc: TProgressProc;
+  send: string;
 begin
-if Key = #13 then
-if Length(Trim(ApiKey)) > 0 then begin
 try
-    str:='';
-    btnTranc.Enabled := True;
-    str := edt1.Text; edt1.Clear;
-    if Length(str) > 0 then begin
-       Url := 'https://api.openai.com/v1/chat/completions';
-       Memo1.Lines.Add(PostParam('POST',Url,'{  "model": "gpt-3.5-turbo",  "messages": [{"role": "user", "content": "'+str+'!"}]}',ApiKey));
-       Memo2.Clear;
-       str := Trim(Memo1.Lines.Text);
-       Memo2.Lines.Add(str);      
-       Application.ProcessMessages;
-     try
-       uText := str;
-       if not Assigned(fMyThread) then fMyThread := TMyThread.Create(UpdateProgressBar);
-       Application.ProcessMessages;
-     except
-       on E:Exception do
-          Writeln(E.Classname, ':', E.Message);
-     end;
-       lst2.Items.Add(Trim(Memo1.Lines.Text));
-       Memo1.Clear;
-    end else begin
-       stat1.SimpleText := 'Empty text';
-       TrayIcon1.ShowBalloonHint('The ChatGPT', 'Empty text', bitInfo, 11);  //bitInfo, bitWarning, bitError,
-       Application.ProcessMessages;
-    end;
+if Key = #13 then begin
+  if chkTelegram.Checked then begin
+  if Length(edt1.Text) > 0 then begin
+     FParams.RequestURL := '';
+     FParams.Token := TelegKey;
+     FParams.chatid := uTelegramChatID;
+     FParams.sendMessage := '/sendMessage';
+     send := Format(cURL+'%s'+FParams.sendMessage+'?chat_id=%s&text=%s', [FParams.Token, FParams.chatid, urlencode(edt1.Text)]); //'https://api.telegram.org/bot1677238510:AAH_GCkhYNs9uzrl2rjNmV6ttzRUq8jSdSY/sendMessage?chat_id=898682858&text=test'
+     FParams.RequestURL := send;
+     FParams.Method := 'GET';
+     THTTPRequest.Create(FParams);
+  end;
+  end else begin
+   StatMes := True;
+   ThreadBegin := TMyThread.Create(ProgressProc,False); //
+   ThreadBegin.Priority:=tpNormal;
+  end;
+end;
 except
   Exit;
-end;
-end else if (Length(Trim(ApiKey)) = 0) then begin
-  MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
-  btnToken.Click;
 end;
 end;
 
@@ -1516,141 +1810,6 @@ try
 except
   Exit;
 end;
-end;
-
-//TextEncode
-function UrlEncode(Str: ansistring): ansistring; 
-  function CharToHex(Ch: ansiChar): Integer;
-  asm
-    and eax, 0FFh
-    mov ah, al
-    shr al, 4
-    and ah, 00fh
-    cmp al, 00ah
-    jl @@10
-    sub al, 00ah
-    add al, 041h
-    jmp @@20
-@@10:
-    add al, 030h
-@@20:
-    cmp ah, 00ah
-    jl @@30
-    sub ah, 00ah
-    add ah, 041h
-    jmp @@40
-@@30:
-    add ah, 030h
-@@40:
-    shl eax, 8
-    mov al, '%'
-  end;
-var
-  i, Len: Integer;
-  Ch: ansiChar;
-  N: Integer;
-  P: PansiChar;
-begin
-  Result := '';
-  Len := Length(Str);
-  P := PansiChar(@N);
-  for i := 1 to Len do
-  begin
-    Ch := Str[i];
-    if Ch in ['0'..'9', 'A'..'Z', 'a'..'z', '_'] then
-      Result := Result + Ch
-    else
-    begin
-      if Ch = ' ' then
-        Result := Result + '+'
-      else
-      begin
-        N := CharToHex(Ch);
-        Result := Result + P;
-      end;
-    end;
-  end;
-end;
- 
-function UrlDecode(Str: Ansistring): Ansistring;
-  function HexToChar(W: word): AnsiChar;
-  asm
-   cmp ah, 030h
-   jl @@error
-   cmp ah, 039h
-   jg @@10
-   sub ah, 30h
-   jmp @@30
-@@10:
-   cmp ah, 041h
-   jl @@error
-   cmp ah, 046h
-   jg @@20
-   sub ah, 041h
-   add ah, 00Ah
-   jmp @@30
-@@20:
-   cmp ah, 061h
-   jl @@error
-   cmp al, 066h
-   jg @@error
-   sub ah, 061h
-   add ah, 00Ah
-@@30:
-   cmp al, 030h
-   jl @@error
-   cmp al, 039h
-   jg @@40
-   sub al, 030h
-   jmp @@60
-@@40:
-   cmp al, 041h
-   jl @@error
-   cmp al, 046h
-   jg @@50
-   sub al, 041h
-   add al, 00Ah
-   jmp @@60
-@@50:
-   cmp al, 061h
-   jl @@error
-   cmp al, 066h
-   jg @@error
-   sub al, 061h
-   add al, 00Ah
-@@60:
-   shl al, 4
-   or al, ah
-   ret
-@@error:
-   xor al, al
-  end; 
-  function GetCh(P: PAnsiChar; var Ch: AnsiChar): AnsiChar;
-  begin
-    Ch := P^;
-    Result := Ch;
-  end;
-var
-  P: PAnsiChar;
-  Ch: AnsiChar;
-begin
-  Result := '';
-  P := @Str[1];
-  while GetCh(P, Ch) <> #0 do
-  begin
-    case Ch of
-      '+': Result := Result + ' ';
-      '%':
-        begin
-          Inc(P);
-          Result := Result + HexToChar(PWord(P)^);
-          Inc(P);
-        end;
-    else
-      Result := Result + Ch;
-    end;
-    Inc(P);
-  end;
 end;
 
 procedure TmyChatGPT.btnTrancClick(Sender: TObject);

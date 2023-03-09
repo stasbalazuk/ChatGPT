@@ -19,27 +19,27 @@ object myChatGPT: TmyChatGPT
   PixelsPerInch = 96
   TextHeight = 13
   object spl2: TSplitter
-    Left = 931
+    Left = 939
     Top = 0
-    Height = 620
+    Height = 628
     Align = alRight
   end
   object spl3: TSplitter
     Left = 145
     Top = 0
-    Height = 620
+    Height = 628
   end
   object grp1: TGroupBox
     Left = 148
     Top = 0
-    Width = 783
-    Height = 620
+    Width = 791
+    Height = 628
     Align = alClient
     TabOrder = 0
     object spl1: TSplitter
       Left = 2
-      Top = 574
-      Width = 779
+      Top = 582
+      Width = 787
       Height = 3
       Cursor = crVSplit
       Align = alBottom
@@ -65,16 +65,16 @@ object myChatGPT: TmyChatGPT
     object grpTrans: TGroupBox
       Left = 2
       Top = 15
-      Width = 779
-      Height = 559
+      Width = 787
+      Height = 567
       Align = alClient
       Caption = 'Translate [EN/RU]'
       TabOrder = 1
       object Memo2: TMemo
         Left = 2
         Top = 15
-        Width = 775
-        Height = 534
+        Width = 783
+        Height = 542
         Align = alClient
         Color = clSkyBlue
         Font.Charset = DEFAULT_CHARSET
@@ -89,8 +89,8 @@ object myChatGPT: TmyChatGPT
       end
       object ProgressBar1: TProgressBar
         Left = 2
-        Top = 549
-        Width = 775
+        Top = 557
+        Width = 783
         Height = 8
         Align = alBottom
         TabOrder = 1
@@ -98,14 +98,14 @@ object myChatGPT: TmyChatGPT
     end
     object pnl2: TPanel
       Left = 2
-      Top = 577
-      Width = 779
+      Top = 585
+      Width = 787
       Height = 41
       Align = alBottom
       BevelInner = bvLowered
       TabOrder = 2
       DesignSize = (
-        779
+        787
         41)
       object btnTranc: TSpeedButton
         Left = 746
@@ -123,9 +123,9 @@ object myChatGPT: TmyChatGPT
         OnClick = btnTrancClick
       end
       object edt1: TEdit
-        Left = 7
+        Left = 24
         Top = 6
-        Width = 737
+        Width = 720
         Height = 31
         Anchors = [akLeft, akTop, akBottom]
         BevelInner = bvNone
@@ -138,13 +138,23 @@ object myChatGPT: TmyChatGPT
         TabOrder = 0
         OnKeyPress = edt1KeyPress
       end
+      object chkTelegram: TCheckBox
+        Left = 6
+        Top = 15
+        Width = 17
+        Height = 17
+        Hint = 'Telegram Chat ...'
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 1
+      end
     end
   end
   object grp2: TGroupBox
-    Left = 934
+    Left = 942
     Top = 0
     Width = 316
-    Height = 620
+    Height = 628
     Align = alRight
     Caption = 'Response Json'
     TabOrder = 1
@@ -152,7 +162,7 @@ object myChatGPT: TmyChatGPT
       Left = 2
       Top = 15
       Width = 312
-      Height = 603
+      Height = 611
       Align = alClient
       Color = clSkyBlue
       Font.Charset = DEFAULT_CHARSET
@@ -172,7 +182,7 @@ object myChatGPT: TmyChatGPT
     Left = 0
     Top = 0
     Width = 145
-    Height = 620
+    Height = 628
     Align = alLeft
     BevelInner = bvLowered
     TabOrder = 2
@@ -180,7 +190,7 @@ object myChatGPT: TmyChatGPT
       Left = 2
       Top = 2
       Width = 141
-      Height = 262
+      Height = 270
       Align = alClient
       Caption = 'Settings'
       TabOrder = 0
@@ -284,7 +294,7 @@ object myChatGPT: TmyChatGPT
     end
     object grpClean: TGroupBox
       Left = 2
-      Top = 264
+      Top = 272
       Width = 141
       Height = 354
       Align = alBottom
@@ -2505,7 +2515,7 @@ object myChatGPT: TmyChatGPT
     Left = 974
     Top = 87
     Bitmap = {
-      494C010102000800340010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800400010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000010000000E1414143F28282862282828621414143F0000000E0000
