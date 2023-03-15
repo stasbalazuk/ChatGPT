@@ -190,7 +190,7 @@ object myChatGPT: TmyChatGPT
       Left = 2
       Top = 2
       Width = 141
-      Height = 270
+      Height = 310
       Align = alClient
       Caption = 'Settings'
       TabOrder = 0
@@ -291,12 +291,52 @@ object myChatGPT: TmyChatGPT
         State = cbChecked
         TabOrder = 8
       end
+      object grpModel: TGroupBox
+        Left = 2
+        Top = 264
+        Width = 137
+        Height = 44
+        Align = alBottom
+        Caption = 'Model'
+        TabOrder = 9
+        object cbbMod: TComboBox
+          Left = 8
+          Top = 16
+          Width = 97
+          Height = 21
+          ItemHeight = 13
+          TabOrder = 0
+          Text = 'gpt-3.5-turbo'
+          OnChange = cbbModChange
+          Items.Strings = (
+            'gpt-4'
+            'gpt-4-0314'
+            'gpt-4-32k'
+            'gpt-4-32k-0314'
+            'gpt-3.5-turbo'
+            'gpt-3.5-turbo-0301'
+            'text-davinci-003'
+            'text-davinci-002'
+            'code-davinci-002')
+        end
+        object chkGetModel: TCheckBox
+          Left = 112
+          Top = 19
+          Width = 29
+          Height = 17
+          Hint = 'Get Models'
+          ParentShowHint = False
+          ShowHint = True
+          TabOrder = 1
+          OnClick = chkGetModelClick
+        end
+      end
     end
     object grpClean: TGroupBox
       Left = 2
-      Top = 272
+      Top = 312
       Width = 141
-      Height = 354
+      Height = 314
       Align = alBottom
       Caption = 'Save'
       TabOrder = 1
@@ -304,7 +344,7 @@ object myChatGPT: TmyChatGPT
         Left = 2
         Top = 15
         Width = 137
-        Height = 318
+        Height = 278
         Align = alClient
         ItemHeight = 13
         TabOrder = 0
@@ -312,7 +352,7 @@ object myChatGPT: TmyChatGPT
       end
       object stat1: TStatusBar
         Left = 2
-        Top = 333
+        Top = 293
         Width = 137
         Height = 19
         Panels = <>
@@ -2515,7 +2555,7 @@ object myChatGPT: TmyChatGPT
     Left = 974
     Top = 87
     Bitmap = {
-      494C010102000800400010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010102000800480010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000010000000E1414143F28282862282828621414143F0000000E0000

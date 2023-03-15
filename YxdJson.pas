@@ -5046,23 +5046,14 @@ begin
           CatValue(ABuilder, item.FName, ADoEscape);
           ABuilder.Cat(CharNameEnd, 2 + Ord(JsonNameAfterSpace));
           try
-                if ANode.FItems.Count > 3 then
-                if //(item.FName <> 'count') or
-                   (item.FName = 'pharmacyId') or
-                   (item.FName = 'pharmacyAlias') or
-                   (item.FName = 'brandName') then
+           if ANode.FItems.Count > 3 then
+           if (item.FName = 'id') then
            case Item.FType of
                 jdtString: begin
                             AResultStr := AResultStr+StrToExt(item.GetString)+CharComma;
-                            if item.FName = 'pharmacyAlias' then
-                            //FCCenterJournalNetZkz.Apteka.Add(StrToExt(item.GetString));
-                            if item.FName = 'brandName' then
-                            //FCCenterJournalNetZkz.Brand.Add(StrToExt(item.GetString));
                            end;
                 jdtInteger: begin
                             AResultStr := AResultStr+IntToStr(Item.AsInt64)+CharComma;
-                            if item.FName = 'pharmacyId' then
-                            //FCCenterJournalNetZkz.idParm.Add(IntToStr(Item.AsInt64));
                             end;
                 jdtFloat:   AResultStr := AResultStr+FloatToStr(Item.AsFloat)+CharComma;
                 jdtBoolean: AResultStr := AResultStr+BoolToStr(Item.AsBoolean)+CharComma;

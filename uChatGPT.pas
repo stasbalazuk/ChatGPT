@@ -41,6 +41,9 @@ type
   Haitian_Creole,Hebrew,Hindi,Hungarian,Icelandic,Indonesian,Irish,Italian,Japanese,Latvian,
   Lithuanian,Macedonian,Malay,Maltese,Norwegian,Persian,Polish,Portuguese,Romanian,Russian,
   Serbian,Slovak,Slovenian,Spanish,Swahili,Swedish,Thai,Turkish,Ukrainian,Vietnamese,Welsh,Yiddish);
+
+type
+  TStringArray = array of string;
  
 const
   GoogleLanguagesArr : array[TGoogleLanguages] of string =
@@ -149,6 +152,9 @@ type
     ProgressBar1: TProgressBar;
     chkVoice: TCheckBox;
     chkTelegram: TCheckBox;
+    grpModel: TGroupBox;
+    cbbMod: TComboBox;
+    chkGetModel: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure chksaveClick(Sender: TObject);
     procedure lst2Click(Sender: TObject);
@@ -171,15 +177,19 @@ type
     procedure aListFineTunesExecute(Sender: TObject);
     procedure cPromptsChange(Sender: TObject);
     procedure btnTrancClick(Sender: TObject);
+    procedure cbbModChange(Sender: TObject);
+    procedure chkGetModelClick(Sender: TObject);
   private
     { Private declarations }
     sSkinForm: integer;
     ResStream: TResourceStream;
     fMyThread: TMyThread;
+    procedure GetModel;
     procedure UpdateProgressBar(aProgress: Integer);
     procedure GetRegStatus(id: Integer);
     function GetTranslate(Metod: string; RequestURL: string): string;
     function PostParam(Metod: string; RequestURL: string; Params: string; Bearer: string): string;
+    function GetModelData(Metod: string; RequestURL: string; Bearer: string): JSONString;
     function PostTranslate(Metod: string; RequestURL: string; Params: string): string;
     { Setting ini file }
     procedure WriteIniFile(uFile: string; Section_Name: string; Key_Name: string; StrValue: string);
@@ -198,7 +208,7 @@ type
     uStr2     : TStringList;
     FileName  : string;
     temper : Integer;
-    uToken : string;
+    uToken,uModel : string;
   end;
 
   THTTPRequest = class(TThread)
@@ -600,7 +610,7 @@ try
     str := myChatGPT.edt1.Text; myChatGPT.edt1.Clear;
     if Length(str) > 0 then begin
        Url := 'https://api.openai.com/v1/chat/completions';
-       myChatGPT.Memo1.Lines.Add(myChatGPT.PostParam('POST',Url,'{  "model": "gpt-3.5-turbo",  "messages": [{"role": "user", "content": "'+str+'!"}]}',myChatGPT.ApiKey));
+       myChatGPT.Memo1.Lines.Add(myChatGPT.PostParam('POST',Url,'{  "model": "'+myChatGPT.uModel+'",  "messages": [{"role": "user", "content": "'+str+'!"}]}',myChatGPT.ApiKey));
        myChatGPT.Memo2.Clear;
        str := Trim(myChatGPT.Memo1.Lines.Text);
        myChatGPT.Memo2.Lines.Add(str);      
@@ -1130,6 +1140,7 @@ begin
  end;  
 end;
 
+//Telegram
 procedure THTTPRequest.GetMessageTelegram;
 var
   Req: OleVariant;
@@ -1140,6 +1151,7 @@ var
   Json : JSONBase;
   ABuilder: TStringCatHelper;
 begin
+  if Length(FParams.RequestURL) = 0 then Exit;
   try
     Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
     Req.Open(FParams.Method, FParams.RequestURL, False);
@@ -1148,8 +1160,8 @@ begin
     Req.SetRequestHeader('Connection','Keep-Alive');
     Req.SetRequestHeader('Proxy-Connection','keep-alive');
     Req.SetRequestHeader('Accept','application/json');
-    //Req.SetProxy(2,'gw:8080');
-    //Req.SetCredentials('GAMMA\balazuk', '23Qwerty',HTTPREQUEST_SETCREDENTIALS_FOR_PROXY);
+    //Req.SetProxy(2,'server:port');
+    //Req.SetCredentials('login', 'pass',HTTPREQUEST_SETCREDENTIALS_FOR_PROXY);
     Req.Send();
     Req.WaitForResponse;
   finally
@@ -1179,70 +1191,6 @@ begin
   end;
 end;
 
-//Telegram
-{procedure THTTPRequest.GetMessageTelegram;  //(Metod: string; RequestURL: string; Params: string; Bearer: string)
-var
-  Req: OleVariant;
-  OV: Variant;
-  os: TOLEStream;
-  im: TMemoryStream;
-  Json : JSONBase;
-  str : JSONString;
-  ABuilder: TStringCatHelper;
-begin
-try
-  try
-    Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
-    Req.Open(FParams.Method, FParams.RequestURL, False);
-    Req.SetRequestHeader('Authorization', 'Bearer ' + FParams.Token); //Req.SetRequestHeader('OpenAI-Organization','org-bXVjI4KnG03UZemtwcyVmWoi');
-    Req.SetRequestHeader('Content-Type','application/json; charset=utf-8');
-    Req.SetRequestHeader('Cache-control','no-cache');
-    Req.SetRequestHeader('Connection','Keep-Alive');
-    Req.SetRequestHeader('Proxy-Connection','keep-alive');
-    Req.SetRequestHeader('Accept','application/json');
-    Req.Send();
-    Req.WaitForResponse;
-    myChatGPT.GetRegStatus(Req.Status);
-    if Req.Status = 200 then
-    begin
-    os := TOleStream.Create(IUnknown(Req.ResponseStream) as IStream);
-    im:=TMemoryStream.Create;
-    im.CopyFrom(os,os.Size);
-    im.Position:=0;
-    str:=StreamToString(im);
-    str:=Utf8ToAnsi(str);
-    if Length(str) > 0 then begin
-       ABuilder := TStringCatHelper.Create;
-       try
-          Json := JSONBase.Parser(Trim(str), False);
-       if Assigned(Json) then begin
-          str := '';
-          str := PChar(Trim(Json.ToString(4,False)));
-          myChatGPT.mmo1.Lines.Add(str);
-          myChatGPT.lst2.Items.Add(str);
-          str := '';
-          str:=Trim(Json.GetSTS('url',Json,0,ABuilder,7));
-          myChatGPT.Memo2.Lines.Add(str);
-          //if Length(str) > 0 then ShellExecute(Handle, 'open', PChar(str), nil, nil, SW_NORMAL);
-       end;
-       finally
-          FreeAndNil(ABuilder);
-       end;
-    end;
-    end
-    else
-    begin
-      FMessage := 'HTTP ' + IntToStr(Req.Status) + ' ' + Req.StatusText;
-    end;
-    Synchronize(SynchronizeResult);
-  finally
-    Req := Unassigned;
-  end;
-except
-  Exit;
-end;
-end; }
-
 //GetImage
 procedure THTTPRequest.GetImage;  //(Metod: string; RequestURL: string; Params: string; Bearer: string)
 var
@@ -1255,6 +1203,7 @@ var
   ABuilder: TStringCatHelper;
 begin
 try
+  if Length(FParams.RequestURL) = 0 then Exit;
   try
     Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
     Req.Open(FParams.Method, FParams.RequestURL, False);
@@ -1330,6 +1279,7 @@ var
   str : JSONString;
   ABuilder: TStringCatHelper;
 begin
+  if Length(RequestURL) = 0 then Exit;
 try
   Result:='';
   try
@@ -1361,6 +1311,7 @@ try
        mmo1.Lines.Add(Trim(str));
        lst2.Items.Add(Trim(str));
        if Pos('translatedText',Trim(str)) > 0 then Result:=Trim(Json.GetSTS('translatedText',Json,0,ABuilder,7)) else
+       if Pos('error',Trim(str)) > 0 then begin Result := Trim(Json.GetSTS('message',Json,0,ABuilder,7)); btnTranc.Enabled := True; end else
        Result := PChar(Trim(Json.ToString(4,False)));
      finally
        FreeAndNil(ABuilder);
@@ -1371,6 +1322,62 @@ except
   Exit;
 end;
 end;
+
+//GetModelData
+function TmyChatGPT.GetModelData(Metod: string; RequestURL: string; Bearer: string): JSONString;
+var
+  Req: OleVariant;
+  OV: Variant;
+  os: TOLEStream;
+  im: TMemoryStream;
+  Json : JSONBase;
+  str : JSONString;
+  ABuilder: TStringCatHelper;
+begin
+try
+  Result:='';
+  if Length(RequestURL) = 0 then Exit;
+  try
+    Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
+    Req.Open(Metod, RequestURL, False);
+    Req.SetRequestHeader('Authorization', 'Bearer ' + Bearer);
+    Req.SetRequestHeader('Content-Type','application/json; charset=utf-8');
+    Req.SetRequestHeader('Cache-control','no-cache');
+    Req.SetRequestHeader('Connection','Keep-Alive');
+    Req.SetRequestHeader('Proxy-Connection','keep-alive');
+    Req.SetRequestHeader('Accept','application/json');
+    Req.Send;
+    Req.WaitForResponse;
+    GetRegStatus(Req.Status);
+  finally
+    OV:=Req.ResponseStream;
+    TVarData(OV).vType:=varUnknown;
+    os:=TOLEStream.Create(IStream(TVarData(OV).VUnknown));
+    im:=TMemoryStream.Create;
+    im.CopyFrom(os,os.Size);
+    im.Position:=0;
+    str:=StreamToString(im);
+    str:=Utf8ToAnsi(str);
+    if Length(str)>0 then
+     try
+       ABuilder := TStringCatHelper.Create;
+       Json := JSONBase.Parser(Trim(str), False);
+       str:='';
+       str:=PChar(Trim(Json.ToString(4,False)));
+       mmo1.Lines.Add(Trim(str));
+       lst2.Items.Add(Trim(str));
+       if Pos('id',Trim(str)) > 0 then Result:=Trim(Json.GetSTSALLNode('id',Json,0,ABuilder)) else
+       Result := PChar(Trim(Json.ToString(4,False)));
+     finally
+       FreeAndNil(ABuilder);
+     end;
+  end;
+except
+  Result:='Error Out Json';
+  Exit;
+end;
+end;
+
 
 //Autorisation
 function TmyChatGPT.PostParam(Metod: string; RequestURL: string; Params: string; Bearer: string): string;
@@ -1385,6 +1392,7 @@ var
 begin
 try
   Result:='';
+  if Length(RequestURL) = 0 then Exit;
   try
     Req:=CreateOleObject('WinHttp.WinHttpRequest.5.1');
     Req.Open(Metod, RequestURL, False);
@@ -1484,6 +1492,8 @@ begin
 try
       TrayIcon1.IconVisible := True;
       DecodeDate(Now,wy,wm,wd);
+      cbbMod.ItemIndex := 4;
+      uModel := cbbMod.Items.Strings[cbbMod.ItemIndex];
       myDir := FormatDateTime('dd',Now)+'.'+FormatDateTime('mm',Now)+'.'+FormatDateTime('yyyy',Now);
    if not DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)) then  ForceDirectories(GetCurrentDir+'\'+IntToStr(wy));
    if not DirectoryExists(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy)) then  ForceDirectories(GetCurrentDir+'\'+IntToStr(wy)+'\'+IntToStr(wm)+IntToStr(wy));
@@ -1610,8 +1620,7 @@ end;
 procedure TmyChatGPT.FormActivate(Sender: TObject);
 begin
 try
-  edt1.SetFocus;
-  if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean;
+  edt1.SetFocus; if Win32Platform = VER_PLATFORM_WIN32_NT then SetProcessWorkingSetSize(GetCurrentProcess, $FFFFFFFF, $FFFFFFFF); RamClean; chkGetModel.Enabled := False;
 except
   Exit;
 end;
@@ -1620,10 +1629,7 @@ end;
 procedure TmyChatGPT.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
 try
-  uStr1.Free;
-  uStr2.Free;
-  if sSkinManager1 <> nil then FreeAndNil(sSkinManager1);
-  Application.Terminate;
+  uStr1.Free; uStr2.Free; if sSkinManager1 <> nil then FreeAndNil(sSkinManager1); Application.Terminate;
 except
   Exit;
 end;
@@ -1708,6 +1714,55 @@ try
  finally
   fSetting.Free;
  end;
+except
+  Exit;
+end;
+end;
+
+function SplitS(S: String; Delimiter:TSysCharSet = [#9]): TStringArray;
+var
+   len, idx1, idx2, idx: integer;
+begin
+     Result := nil;
+     if Length(S) = 0 then Exit;
+     len := Length(S);
+     SetLength(Result, len);
+     idx2 := 1;
+     idx := 0;
+     repeat
+       idx1 := idx2;
+       while (idx2 <= len) and not(S[idx2] in Delimiter) do inc(idx2);
+       if idx1 <= idx2 then
+       begin
+          Result[idx] := (Copy(S, idx1, idx2-idx1));
+          if myChatGPT.cbbMod.Items.IndexOf(Copy(S, idx1, idx2-idx1)) = -1 then myChatGPT.cbbMod.Items.Add(Copy(S, idx1, idx2-idx1));
+          inc(idx);
+       end;
+       if (idx2 <= len) and (S[idx2] in Delimiter) then inc(idx2);
+     until idx2 > len;
+     SetLength(Result, idx);
+end;
+
+procedure TmyChatGPT.GetModel;
+const ForReplace: string = ','; //.;:!?=+"*()\|{}[]«»-
+var Url: string; uStr: JSONString; i: Integer; st: TSysCharSet;
+begin
+try
+  Memo1.Clear;
+  Memo2.Clear;
+  Url := 'https://api.openai.com/v1/models';
+  if (Length(Trim(ApiKey)) > 0) then begin
+     uStr := GetModelData('GET',Url,ApiKey);
+     st := [','];
+     if Length(uStr) > 0 then SplitS(uStr,st);
+     {for i := 1 to Length(uStr) do begin
+         Str := StringReplace(uStr, ForReplace[i], #32, [rfReplaceAll]);
+      if cbbMod.Items.IndexOf(Str) = -1 then cbbMod.Items.Add(Str);
+     end; }
+  end else if (Length(Trim(ApiKey)) = 0) then begin
+     MessageBox(Handle,PChar('No token, please enter a token!'), PChar('Attention'), 64);
+     btnToken.Click;
+  end;
 except
   Exit;
 end;
@@ -1817,16 +1872,36 @@ var Url: string;
 begin
 try
   if Length(edt1.Text) > 0 then begin
-     Memo1.Clear;
-     Memo2.Clear;
+     Memo1.Clear; Memo2.Clear;
      btnTranc.Enabled := False;
-  if Length(Trim(GoogleLanguageApiKey)) > 0 then begin
+  if Length(Trim(GoogleLanguageApiKey)) > 0 then begin // https://www.googleapis.com/auth/cloud-translation
      Url := 'https://www.googleapis.com/language/translate/v2?key='+GoogleLanguageApiKey+'&source=ru&target=en&q='+UrlEncode(AnsiToUtf8(edt1.Text));;
-     edt1.Text := GetTranslate('GET',Url);
+     edt1.Text := GetTranslate('GET',Url); //TranslateText(Trim(uText),'ru','en');
   end else if (Length(Trim(GoogleLanguageApiKey)) = 0) then begin
      MessageBox(Handle,PChar('No GoogleLanguageApiKey, please enter a GoogleLanguageApiKey!'), PChar('Attention'), 64);
      btnToken.Click;
   end;
+  end;
+except
+  Exit;
+end;
+end;
+
+procedure TmyChatGPT.cbbModChange(Sender: TObject);
+begin
+try
+  uModel := cbbMod.Items.Strings[cbbMod.ItemIndex];
+except
+  Exit;
+end;
+end;
+
+procedure TmyChatGPT.chkGetModelClick(Sender: TObject);
+begin
+try
+  if chkGetModel.Checked then begin
+     GetModel;
+     chkGetModel.Enabled := False;
   end;
 except
   Exit;
